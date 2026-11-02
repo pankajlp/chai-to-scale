@@ -1,5 +1,7 @@
 # Chai to Scale
 
+**[Open Chai to Scale](https://pankajlp.github.io/chai-to-scale/)**
+
 Learn system design with no coding. You run a chai stall, grow it to a crore customers, and fix real scaling problems in live simulators.
 
 - 30 lessons across 7 stations, simple to complex
@@ -11,17 +13,17 @@ Case-study numbers are rounded public figures, and the designs are simplified fo
 
 ## Run it
 
-Open `index.html` in a browser, or serve the folder:
+Open `docs/index.html` in a browser, or serve the folder:
 
 ```bash
-python3 -m http.server 8797
+python3 -m http.server 8797 -d docs
 ```
 
 Saving progress to an account and the Ask Claude box only work when the page is published as a Claude artifact. Elsewhere, progress stays in your browser and the box is hidden.
 
 ## Change it
 
-Edit the files in `src/`, then rebuild `index.html`:
+Edit the files in `src/`, then rebuild the pages. `docs/index.html` is the GitHub Pages site:
 
 ```bash
 ./build.sh
