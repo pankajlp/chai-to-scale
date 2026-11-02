@@ -1,0 +1,1366 @@
+<title>Chai to Scale</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,700;125,800;125,900&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout concept: an Indian railway line. Each level is a station with a yellow platform board,
+   and live simulators use signal lights (green, yellow, red) to show system health. */
+:root{
+  --paper:#F1F4F3;--card:#FFFFFF;--sunk:#E6EBEA;--ink:#15191C;--mute:#55606A;--line:#D2D9DA;
+  --sign:#FFCC00;--signink:#15191C;--rail:#1B4DB1;--railsoft:#E3EAF9;
+  --go:#117A3B;--gosoft:#DDF2E5;--wait:#A86F00;--waitsoft:#FBF0D2;--stop:#C9281D;--stopsoft:#FBE3E1;
+  --bar:#15191C;
+  --display:"Archivo","Arial Black",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#101518;--card:#192024;--sunk:#222B30;--ink:#EEF2F1;--mute:#A0ACB3;--line:#313C42;
+  --rail:#8DB0F7;--railsoft:#1F2C47;
+  --go:#46C983;--gosoft:#15331F;--wait:#F2B83A;--waitsoft:#3A2E10;--stop:#F47468;--stopsoft:#401B18;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#101518;--card:#192024;--sunk:#222B30;--ink:#EEF2F1;--mute:#A0ACB3;--line:#313C42;
+  --rail:#8DB0F7;--railsoft:#1F2C47;
+  --go:#46C983;--gosoft:#15331F;--wait:#F2B83A;--waitsoft:#3A2E10;--stop:#F47468;--stopsoft:#401B18;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font:400 17px/1.55 var(--body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bar)}
+h1,h2,h3{font-family:var(--display);font-stretch:125%;line-height:1.12;text-wrap:balance;margin:0}
+h1{font-size:clamp(28px,5.2vw,44px);font-weight:900}
+h2{font-size:clamp(21px,3.2vw,27px);font-weight:800}
+h3{font-size:17px;font-weight:800}
+p{margin:0}
+a{color:var(--rail)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--rail);outline-offset:2px}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.read{max-width:760px;margin:0 auto}
+.stack{display:flex;flex-direction:column;gap:22px}
+.label{font:700 12px/1.3 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--bar);color:#fff}
+.top .wrap{display:flex;align-items:center;gap:6px 16px;flex-wrap:wrap;padding-block:8px}
+.brand{all:unset;cursor:pointer;background:var(--sign);color:var(--signink);font:900 15px/1 var(--display);font-stretch:125%;padding:8px 10px;border:2px solid var(--signink);box-shadow:0 0 0 2px var(--sign);letter-spacing:.02em}
+.brand:focus-visible{outline:3px solid #fff}
+.nav{display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0}
+.nav button{all:unset;cursor:pointer;padding:7px 10px;font-weight:700;font-size:15px;color:#C9D2D6;border-bottom:3px solid transparent}
+.nav button:hover{color:#fff}
+.nav button[aria-current="page"]{color:#fff;border-bottom-color:var(--sign)}
+.nav button:focus-visible{outline:2px solid #fff}
+.score{display:flex;gap:10px;align-items:center;font:700 13px var(--mono);color:#fff;white-space:nowrap}
+.score b{color:var(--sign)}
+
+/* boards */
+.board{background:var(--sign);color:var(--signink);border:3px solid var(--signink);outline:3px solid var(--sign);padding:14px 18px;margin:3px}
+.board .label{color:var(--signink);opacity:.72}
+.board h1,.board h2{color:var(--signink)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:26px;padding-block:28px 12px;align-items:start}
+.hero>*{min-width:0}
+.hero .lead{font-size:19px}
+.btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:700;padding:11px 18px;background:var(--ink);color:var(--paper);border:2px solid var(--ink);text-align:center}
+.btn:hover{background:var(--rail);border-color:var(--rail);color:var(--card)}
+.btn:focus-visible{outline:3px solid var(--rail);outline-offset:2px}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.ghost:hover{background:var(--sunk);color:var(--ink);border-color:var(--ink)}
+.btn.small{padding:6px 12px;font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+/* journey line */
+.line{position:relative;padding-left:44px;display:flex;flex-direction:column;gap:30px;padding-block:18px 40px}
+.line::before{content:"";position:absolute;left:11px;top:0;bottom:0;width:14px;background:
+  repeating-linear-gradient(180deg,var(--mute) 0 4px,transparent 4px 13px)}
+.line::after{content:"";position:absolute;left:14px;top:0;bottom:0;width:8px;border-left:2px solid var(--ink);border-right:2px solid var(--ink)}
+.stn{position:relative;display:flex;flex-direction:column;gap:12px}
+.stn::before{content:"";position:absolute;z-index:1;left:-41px;top:18px;width:22px;height:22px;border-radius:50%;background:var(--sign);border:4px solid var(--ink)}
+.stn.full::before{background:var(--go)}
+.stn .board{align-self:flex-start;max-width:100%}
+.stn .blurb{color:var(--mute);max-width:62ch}
+.lessons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 22px}
+.lessons button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;gap:10px;align-items:baseline;padding:9px 4px;border-bottom:1px solid var(--line);min-width:0}
+.lessons button:hover{background:var(--sunk)}
+.lessons button:focus-visible{outline:3px solid var(--rail)}
+.lessons .tick{flex:none;font:700 12px var(--mono);width:26px;color:var(--mute)}
+.lessons .done .tick,.lessons button.done .tick{color:var(--go)}
+.lessons .name{font-weight:700}
+.lessons .sub{display:block;font-weight:400;font-size:15px;color:var(--mute)}
+
+/* lesson */
+.crumb{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-block:18px 8px}
+.linkish{all:unset;cursor:pointer;color:var(--rail);font-weight:700;text-decoration:underline}
+.linkish:focus-visible{outline:3px solid var(--rail)}
+.block{display:flex;flex-direction:column;gap:8px}
+.bigtext{font-size:20px;line-height:1.5}
+.idea{font-size:20px;font-weight:700;line-height:1.4}
+.realgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.real{background:var(--card);border:1px solid var(--line);padding:12px 14px;min-width:0}
+.real b{display:block;font-family:var(--display);font-stretch:125%;font-size:15px;margin-bottom:2px}
+.cost{background:var(--waitsoft);padding:14px 16px;border-left:6px solid var(--wait)}
+.words{margin:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);border-top:1px solid var(--line)}
+.words dt,.words dd{margin:0;padding:8px 4px;border-bottom:1px solid var(--line)}
+.words dt{font-weight:700}
+details.deep{background:var(--railsoft);padding:12px 16px}
+details.deep summary{cursor:pointer;font-weight:700;color:var(--rail)}
+details.deep p{margin-top:8px}
+.prose p+p{margin-top:10px}
+
+/* sim */
+.sim{background:var(--card);border:2px solid var(--ink);min-width:0}
+.sim canvas{display:block;width:100%;background:var(--card)}
+.simhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line)}
+.signal{display:flex;gap:4px;background:var(--signink);padding:4px 6px;border-radius:12px}
+.signal i{width:12px;height:12px;border-radius:50%;background:#3b4246;display:block}
+.signal[data-s="go"] i:nth-child(1){background:#35D07F;box-shadow:0 0 7px #35D07F}
+.signal[data-s="wait"] i:nth-child(2){background:#FFCC00;box-shadow:0 0 7px #FFCC00}
+.signal[data-s="stop"] i:nth-child(3){background:#FF5A4D;box-shadow:0 0 7px #FF5A4D}
+.stat{font:700 15px var(--mono);white-space:nowrap}
+.stat small{display:block;font:400 12px var(--body);color:var(--mute)}
+.simhead .spacer{flex:1}
+.simsay{padding:9px 12px;background:var(--sunk);font-weight:700;min-height:42px}
+.ctrls{display:flex;flex-direction:column;gap:10px;padding:12px;border-top:1px solid var(--line)}
+.ctl{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) auto;gap:10px;align-items:center}
+.ctl output{font:700 14px var(--mono);min-width:64px;text-align:right}
+.ctl input[type=range]{width:100%;accent-color:var(--rail);min-height:28px}
+.ctlbtns{display:flex;flex-wrap:wrap;gap:8px}
+.tog{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:2px solid var(--ink);font-weight:700;font-size:15px}
+.tog::before{content:"";width:14px;height:14px;border:2px solid var(--ink);background:transparent}
+.tog[aria-pressed="true"]{background:var(--sign);color:var(--signink);border-color:var(--signink)}
+.tog[aria-pressed="true"]::before{background:var(--signink);border-color:var(--signink)}
+.tog:focus-visible{outline:3px solid var(--rail);outline-offset:2px}
+.act{all:unset;box-sizing:border-box;cursor:pointer;padding:6px 12px;font-weight:700;font-size:15px;background:var(--stopsoft);color:var(--stop);border:2px solid var(--stop)}
+.act:hover{background:var(--stop);color:var(--card)}
+.act:focus-visible{outline:3px solid var(--rail);outline-offset:2px}
+.seg{display:flex;flex-wrap:wrap;gap:0}
+.seg button{all:unset;box-sizing:border-box;cursor:pointer;padding:6px 12px;border:2px solid var(--ink);margin-right:-2px;font-weight:700;font-size:15px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg button:focus-visible{outline:3px solid var(--rail);outline-offset:2px;position:relative}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--mute);padding:6px 12px;border-top:1px solid var(--line)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.simtry{font-size:17px}
+.simtry b{color:var(--rail)}
+
+/* visuals */
+.vis{background:var(--card);border:2px solid var(--ink);padding:14px;min-width:0;overflow-x:auto}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.two>*{min-width:0}
+.tbl{border-collapse:collapse;width:100%;font-size:15px}
+.tbl th,.tbl td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.tbl th{background:var(--sunk);font-weight:700}
+pre.code{margin:0;font:500 14px/1.5 var(--mono);background:var(--sunk);padding:10px 12px;overflow-x:auto}
+.steps{display:flex;flex-direction:column;gap:8px;list-style:none;margin:0;padding:0}
+.stepbtn{all:unset;box-sizing:border-box;cursor:pointer;display:flex;gap:10px;width:100%;padding:9px 10px;border:1px solid var(--line);background:var(--card)}
+.stepbtn:hover{background:var(--sunk)}
+.stepbtn[aria-pressed="true"]{background:var(--sign);color:var(--signink);border-color:var(--signink)}
+.stepbtn:focus-visible{outline:3px solid var(--rail)}
+.stepbtn .n{font:700 14px var(--mono);flex:none;width:20px}
+.txnrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-block:10px}
+.acct{border:2px solid var(--line);padding:10px 12px}
+.acct b{display:block;font:700 22px var(--mono)}
+.bars{display:flex;align-items:flex-end;gap:3px;height:110px;border-bottom:2px solid var(--ink)}
+.bars i{flex:1;background:var(--rail);display:block;min-width:0}
+.bars i.slow{background:var(--stop)}
+
+/* quiz */
+.q{background:var(--card);border:2px solid var(--ink);padding:14px;display:flex;flex-direction:column;gap:10px}
+.opt{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;padding:9px 12px;border:1px solid var(--line)}
+.opt:hover{background:var(--sunk)}
+.opt:focus-visible{outline:3px solid var(--rail)}
+.opt.right{background:var(--gosoft);border-color:var(--go);font-weight:700}
+.opt.wrong{background:var(--stopsoft);border-color:var(--stop)}
+.why{font-size:16px}
+.ask{background:var(--sunk);padding:14px;display:flex;flex-direction:column;gap:10px}
+.ask input{width:100%;padding:9px 11px;border:2px solid var(--ink);background:var(--card)}
+.ask .ans{white-space:pre-wrap}
+.next{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;padding-block:10px 40px}
+
+/* cards, lists */
+.casegrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.casecard{all:unset;box-sizing:border-box;cursor:pointer;background:var(--card);border:2px solid var(--ink);padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.casecard:hover{background:var(--sunk)}
+.casecard:focus-visible{outline:3px solid var(--rail);outline-offset:2px}
+.casecard .sub{color:var(--mute)}
+.pill{display:inline-block;font:700 12px var(--mono);padding:2px 7px;background:var(--railsoft);color:var(--rail);align-self:flex-start}
+.pill.ok{background:var(--gosoft);color:var(--go)}
+.nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.nums div{border-top:4px solid var(--ink);padding-top:6px;min-width:0}
+.nums b{display:block;font:700 19px var(--mono)}
+.fix{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);border:1px solid var(--line);background:var(--card)}
+.fix>div{padding:10px 12px;min-width:0}
+.fix>div:first-child{border-right:1px solid var(--line)}
+.fixes{display:flex;flex-direction:column;gap:8px}
+.casewide{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:14px;align-items:start}
+.casewide>*{min-width:0}
+.search{width:100%;padding:11px 12px;border:2px solid var(--ink);background:var(--card)}
+.term{padding:10px 2px;border-bottom:1px solid var(--line)}
+.term b{font-size:18px}
+.term .also{font-size:15px;color:var(--mute)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{all:unset;box-sizing:border-box;cursor:pointer;padding:6px 11px;border:1px solid var(--ink);font-size:15px}
+.chip:hover{background:var(--sunk)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.chip:focus-visible{outline:3px solid var(--rail);outline-offset:2px}
+.labgrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+.labgrid>*{min-width:0}
+.mission{background:var(--card);border:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.mission.on{border:2px solid var(--ink)}
+.verdict{padding:12px 14px;font-weight:700}
+.verdict.ok{background:var(--gosoft);color:var(--go)}
+.verdict.no{background:var(--stopsoft);color:var(--stop)}
+.toast{position:fixed;z-index:20;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--sign);color:var(--signink);border:2px solid var(--signink);font-weight:700;padding:10px 14px;transition:transform .2s}
+.toast[hidden]{display:none}
+footer{color:var(--mute);font-size:15px;padding-block:20px 40px}
+@media (max-width:820px){
+  .top .wrap{justify-content:space-between}
+  .nav{order:3;flex:0 0 100%;flex-wrap:nowrap;overflow-x:auto;white-space:nowrap}
+  .hero,.labgrid,.casewide{grid-template-columns:minmax(0,1fr)}
+  .realgrid,.lessons{grid-template-columns:minmax(0,1fr)}
+  .casegrid{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:520px){
+  body{font-size:16px}
+  .ctl{grid-template-columns:minmax(0,1fr) auto}
+  .ctl input{grid-column:1/-1;grid-row:2}
+  .two,.fix{grid-template-columns:minmax(0,1fr)}
+  .fix>div:first-child{border-right:0;border-bottom:1px solid var(--line)}
+  .nums{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .line{padding-left:34px}
+  .line::before{left:3px}.line::after{left:6px}
+  .stn::before{left:-40px}
+  .words{grid-template-columns:minmax(0,1fr)}
+  .words dt{border-bottom:0;padding-bottom:0}
+  .bigtext,.idea{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<header class="top"><div class="wrap">
+  <button class="brand" id="brand">CHAI TO SCALE</button>
+  <nav class="nav" id="nav" aria-label="Main">
+    <button data-go="home">Journey</button>
+    <button data-go="lab">Build Lab</button>
+    <button data-go="cases">Real Apps</button>
+    <button data-go="words">Fix-it &amp; Words</button>
+  </nav>
+  <div class="score" id="score" aria-label="Your progress"></div>
+</div></header>
+<main id="app"></main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script>
+/* Sim engine: dots are requests that travel between nodes, wait in queues and get served. */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const LIVE = new Set();
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const rnd = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+class Sim {
+  constructor(cfg, host) {
+    this.cfg = cfg; this.host = host || null;
+    this.t = 0; this.acc = 0; this.ps = []; this.log = []; this.rate = cfg.rate ?? 1;
+    this.bgDone = 0; this.blocked = 0; this.total = { ok: 0, lost: 0, ms: 0 }; this.data = {};
+    this.patience = cfg.patience ?? 7000; this.playing = !REDUCED; this.visible = false;
+    this.nodes = {}; this.edges = [];
+    this.setGraph(cfg.nodes, cfg.edges || []);
+    if (cfg.init) cfg.init(this);
+    if (host) this.mount();
+    (cfg.controls || []).forEach(c => { if (c.set && c.val !== undefined) c.set(this, c.val); });
+  }
+  setGraph(nodes, edges) {
+    const old = this.nodes; this.nodes = {};
+    for (const id in nodes) {
+      const prev = old[id], n = nodes[id];
+      this.nodes[id] = Object.assign({ id, workers: 1, ms: 0, queue: 0, busy: 0, q: [], down: false, off: false, hl: false }, n,
+        prev ? { busy: prev.busy, q: prev.q, down: prev.down } : {});
+    }
+    this.edges = edges;
+  }
+  n(id) { return this.nodes[id]; }
+  alive(ids) { return ids.filter(i => { const n = this.nodes[i]; return n && !n.down && !n.off; }); }
+  spawn(tag) {
+    const from = (tag && tag.from) || this.cfg.origin || 'c', o = this.nodes[from];
+    const p = { at: from, from, path: [from], state: 'idle', born: this.t, tag: tag || {}, bg: false, k: 0, x: o.x, y: o.y };
+    this.ps.push(p); this.forward(p); return p;
+  }
+  forward(p) {
+    const next = this.cfg.route(p, p.at, this);
+    if (p.state === 'lost') return;
+    if (next === null || next === undefined) { this.finish(p); return; }
+    if (Array.isArray(next)) {
+      next.forEach(id => { const c = Object.assign({}, p, { path: p.path.slice(), tag: Object.assign({}, p.tag), bg: true }); this.ps.push(c); this.go(c, id); });
+      p.state = 'gone'; return;
+    }
+    this.go(p, next);
+  }
+  go(p, id) {
+    const a = this.nodes[p.at], b = this.nodes[id];
+    p.to = id; p.k = 0; p.state = 'move'; p.dur = b.hop ?? this.cfg.hop ?? 320; p.ax = a.x; p.ay = a.y; p.bx = b.x; p.by = b.y;
+  }
+  arrive(p) {
+    const n = this.nodes[p.to]; p.at = p.to; p.path.push(p.at); p.x = n.x; p.y = n.y;
+    if (n.down || n.off) { this.lose(p); return; }
+    if (n.gate && !n.gate(p, this)) { this.block(p); return; }
+    if (n.ack && !p.bg) this.ack(p);
+    if (!n.ms) { this.forward(p); return; }
+    if (n.busy < n.workers) this.begin(p, n);
+    else if (n.q.length < n.queue) { n.q.push(p); p.state = 'wait'; p.qt = this.t; }
+    else this.lose(p);
+  }
+  begin(p, n) { n.busy++; p.state = 'work'; p.until = this.t + n.ms * rnd(.75, 1.25); p.node = n; }
+  ack(p) {
+    const c = Object.assign({}, p, { path: p.path.slice(), tag: Object.assign({}, p.tag) }); this.ps.push(c); this.finish(c); p.bg = true;
+  }
+  finish(p) {
+    if (p.bg) { this.bgDone++; if (this.cfg.onBgDone) this.cfg.onBgDone(p, this); p.state = 'gone'; return; }
+    p.state = 'back'; p.seg = p.path.length - 1; p.k = 0;
+  }
+  done(p) {
+    p.state = 'gone'; const ms = this.t - p.born;
+    this.log.push({ t: this.t, ok: true, ms }); this.total.ok++; this.total.ms += ms;
+    if (this.cfg.onDone) this.cfg.onDone(p, this);
+  }
+  lose(p) {
+    p.state = 'lost'; p.fade = 1;
+    if (p.bg) { this.data.bgLost = (this.data.bgLost || 0) + 1; return; }
+    this.log.push({ t: this.t, ok: false }); this.total.lost++;
+    if (this.cfg.onLost) this.cfg.onLost(p, this);
+  }
+  block(p) { p.state = 'lost'; p.fade = 1; p.blocked = true; this.blocked++; this.data.blocked = this.blocked; if (this.cfg.onBlock) this.cfg.onBlock(p, this); }
+  setDown(id, v = true) {
+    const n = this.nodes[id]; if (!n) return; n.down = v;
+    if (v) { n.q.splice(0).forEach(p => this.lose(p)); this.ps.filter(p => p.state === 'work' && p.node === n).forEach(p => { n.busy--; this.lose(p); }); }
+  }
+  trace(ids) {
+    /* a single bright dot for walk-throughs */
+    this.ps = this.ps.filter(p => !p.trace);
+    if (ids.length < 2) return;
+    const a = this.nodes[ids[0]];
+    this.ps.push({ trace: true, ids, i: 0, k: 0, x: a.x, y: a.y, state: 'trace' });
+  }
+  highlight(ids) { for (const i in this.nodes) this.nodes[i].hl = ids.includes(i); }
+  step(dt) {
+    this.t += dt; const cfg = this.cfg;
+    if (cfg.tick) cfg.tick(this, dt);
+    this.acc += this.rate * dt / 1000;
+    while (this.acc >= 1) { this.acc -= 1; const tag = cfg.tag ? cfg.tag(this) : {}; if (tag !== false) this.spawn(tag); }
+    for (const p of this.ps) {
+      if (p.state === 'move') {
+        p.k += dt / p.dur; const k = Math.min(1, p.k); p.x = p.ax + (p.bx - p.ax) * k; p.y = p.ay + (p.by - p.ay) * k;
+        if (p.k >= 1) this.arrive(p);
+      } else if (p.state === 'work') {
+        if (this.t >= p.until) {
+          const n = p.node; n.busy--; p.state = 'idle';
+          while (n.q.length && n.busy < n.workers) { const q = n.q.shift(); this.begin(q, n); }
+          this.forward(p);
+        }
+      } else if (p.state === 'wait') {
+        if (this.t - p.born > this.patience) { const n = this.nodes[p.at]; n.q.splice(n.q.indexOf(p), 1); this.lose(p); }
+      } else if (p.state === 'back') {
+        if (p.seg <= 0) { this.done(p); continue; }
+        const a = this.nodes[p.path[p.seg]], b = this.nodes[p.path[p.seg - 1]];
+        p.k += dt / ((a.hop ?? cfg.hop ?? 320) * .55);
+        const k = Math.min(1, p.k); p.x = a.x + (b.x - a.x) * k; p.y = a.y + (b.y - a.y) * k;
+        if (p.k >= 1) { p.seg--; p.k = 0; }
+      } else if (p.state === 'lost') {
+        p.fade -= dt / 900; p.y += dt * .00003; if (p.fade <= 0) p.state = 'gone';
+      } else if (p.state === 'trace') {
+        const a = this.nodes[p.ids[p.i]], b = this.nodes[p.ids[p.i + 1]];
+        p.k += dt / 480; const k = Math.min(1, p.k); p.x = a.x + (b.x - a.x) * k; p.y = a.y + (b.y - a.y) * k;
+        if (p.k >= 1) { p.k = 0; p.i++; if (p.i >= p.ids.length - 1) { p.i = 0; } }
+      }
+    }
+    if (this.ps.length > 60) this.ps = this.ps.filter(p => p.state !== 'gone');
+    if (this.log.length > 900 || (this.log[0] && this.log[0].t < this.t - 10000)) this.log = this.log.filter(l => l.t > this.t - 10000);
+  }
+  recent() {
+    const ok = this.log.filter(l => l.ok), lost = this.log.length - ok.length;
+    return { ok: ok.length, lost, wait: ok.length ? ok.reduce((a, l) => a + l.ms, 0) / ok.length : 0 };
+  }
+  signal() {
+    const r = this.recent(), n = r.ok + r.lost; if (!n) return 'go';
+    const pct = r.lost / n, slow = this.cfg.okMs ?? 3000;
+    if (pct > .15 || r.wait > slow * 1.7) return 'stop';
+    if (pct > .02 || r.wait > slow) return 'wait';
+    return 'go';
+  }
+  /* view */
+  mount() {
+    const h = this.host, cfg = this.cfg; h.className = 'sim'; h.innerHTML = '';
+    h.innerHTML = `<div class="simhead"><div class="signal" data-s="go" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="stat"><span data-st="ok">0</span><small>${esc(cfg.okWord || 'Served')}</small></div>
+      <div class="stat"><span data-st="lost">0</span><small>${esc(cfg.lostWord || 'Gave up')}</small></div>
+      <div class="stat"><span data-st="wait">0.0s</span><small>Avg wait</small></div>
+      <div class="spacer"></div><button class="btn ghost small" data-play type="button">${this.playing ? 'Pause' : 'Play'}</button></div>
+      <canvas role="img" aria-label="${esc(cfg.alt || 'Live animation of requests moving through the system')}"></canvas>
+      <div class="simsay" aria-live="off"></div>
+      <div class="legend"><span><i style="background:var(--rail)"></i>${esc(cfg.reqWord || 'Request going in')}</span><span><i style="background:var(--go)"></i>Answer coming back</span><span><i style="background:var(--stop)"></i>Lost</span>${cfg.legend || ''}</div>`;
+    this.cv = h.querySelector('canvas'); this.ctx = this.cv.getContext('2d'); this.sayEl = h.querySelector('.simsay'); this.sig = h.querySelector('.signal');
+    h.querySelector('[data-play]').onclick = e => { this.playing = !this.playing; e.target.textContent = this.playing ? 'Pause' : 'Play'; };
+    if ((cfg.controls || []).length) { const c = document.createElement('div'); c.className = 'ctrls'; h.appendChild(c); this.buildCtl(c); }
+    this.size(); this.ro = new ResizeObserver(() => this.size()); this.ro.observe(h);
+    this.io = new IntersectionObserver(es => { this.visible = es[0].isIntersecting; }); this.io.observe(this.cv);
+    LIVE.add(this); this.draw(); this.hud();
+  }
+  buildCtl(wrap) {
+    const btnRow = document.createElement('div'); btnRow.className = 'ctlbtns';
+    (this.cfg.controls).forEach((c, i) => {
+      const uid = (this.cfg.key || 'sim') + '-c' + i;
+      if (c.k === 'range') {
+        const d = document.createElement('div'); d.className = 'ctl';
+        d.innerHTML = `<label for="${uid}">${esc(c.label)}</label><input id="${uid}" type="range" min="${c.min}" max="${c.max}" step="${c.step || 1}" value="${c.val}"><output for="${uid}"></output>`;
+        const inp = d.querySelector('input'), out = d.querySelector('output'), fmt = c.fmt || (v => v);
+        const upd = () => { const v = +inp.value; out.textContent = fmt(v); c.set(this, v); };
+        out.textContent = fmt(c.val); inp.oninput = upd; wrap.appendChild(d);
+      } else if (c.k === 'toggle') {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'tog'; b.id = uid; b.textContent = c.label;
+        b.setAttribute('aria-pressed', !!c.val); b.onclick = () => { const v = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', v); c.set(this, v); };
+        btnRow.appendChild(b);
+      } else if (c.k === 'btn') {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'act'; b.id = uid; b.textContent = c.label;
+        b.onclick = () => c.do(this, b); btnRow.appendChild(b);
+      } else if (c.k === 'seg') {
+        const d = document.createElement('div'); d.className = 'ctl'; d.style.gridTemplateColumns = 'minmax(0,190px) minmax(0,1fr)';
+        d.innerHTML = `<span>${esc(c.label)}</span><div class="seg" id="${uid}"></div>`;
+        const s = d.querySelector('.seg');
+        c.opts.forEach(([v, l]) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = l; b.setAttribute('aria-pressed', v === c.val);
+          b.onclick = () => { s.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); c.set(this, v); }; s.appendChild(b); });
+        wrap.appendChild(d);
+      }
+    });
+    if (btnRow.children.length) wrap.appendChild(btnRow);
+  }
+  size() {
+    if (!this.cv) return; const W = this.host.clientWidth - 4; if (W <= 0) return;
+    const H = this.cfg.h ?? 260, r = Math.min(2, devicePixelRatio || 1);
+    const hh = W < 460 ? H + 30 : H;
+    this.W = W; this.H = hh; this.cv.width = W * r; this.cv.height = hh * r; this.cv.style.height = hh + 'px'; this.ctx.setTransform(r, 0, 0, r, 0, 0);
+    this.colors = null; this.draw();
+  }
+  pal() {
+    return this.colors = { card: cssv('--card'), sunk: cssv('--sunk'), ink: cssv('--ink'), mute: cssv('--mute'), line: cssv('--line'), rail: cssv('--rail'), go: cssv('--go'), stop: cssv('--stop'), wait: cssv('--wait'), sign: cssv('--sign'), signink: cssv('--signink') };
+  }
+  draw() {
+    if (!this.ctx || !this.W) return;
+    if (!this.colors || (this.frame = (this.frame || 0) + 1) % 90 === 0) this.pal();
+    const c = this.ctx, C = this.colors, W = this.W, H = this.H, cfg = this.cfg;
+    c.clearRect(0, 0, W, H); c.fillStyle = C.card; c.fillRect(0, 0, W, H);
+    const nw = Math.min(cfg.nw ?? 108, clamp(W * .15, 62, 108)), nh = cfg.nh ?? 46, m = nw / 2 + 6;
+    const X = v => m + v * (W - 2 * m), Y = v => 30 + v * (H - 62);
+    c.lineWidth = 1.5; c.strokeStyle = C.line; c.setLineDash([5, 5]);
+    for (const [a, b] of this.edges) { const A = this.nodes[a], B = this.nodes[b]; if (!A || !B || A.off || B.off) continue; c.beginPath(); c.moveTo(X(A.x), Y(A.y)); c.lineTo(X(B.x), Y(B.y)); c.stroke(); }
+    c.setLineDash([]);
+    for (const id in this.nodes) {
+      const n = this.nodes[id]; if (n.off) continue;
+      const x = X(n.x) - nw / 2, y = Y(n.y) - nh / 2, kind = n.kind || 'server';
+      c.fillStyle = n.hl ? C.sign : (kind === 'client' ? C.sunk : C.card);
+      c.strokeStyle = n.down ? C.stop : (n.hl ? C.signink : C.ink); c.lineWidth = n.hl ? 3 : 2;
+      c.beginPath(); kind === 'client' ? c.roundRect(x, y, nw, nh, 23) : c.rect(x, y, nw, nh); c.fill(); c.stroke();
+      if (kind === 'db') { c.beginPath(); c.moveTo(x, y + 9); c.quadraticCurveTo(x + nw / 2, y + 17, x + nw, y + 9); c.lineWidth = 1.5; c.stroke(); }
+      if (kind === 'cache' || kind === 'queue' || kind === 'lb') { c.fillStyle = kind === 'cache' ? C.wait : kind === 'queue' ? C.go : C.rail; c.fillRect(x, y, 6, nh); }
+      c.fillStyle = n.hl ? C.signink : (n.down ? C.stop : C.ink); c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = '700 12px "Atkinson Hyperlegible",system-ui,sans-serif';
+      const lab = n.down ? 'DOWN' : n.label; const sub = n.down ? n.label : n.sub;
+      c.fillText(lab, x + nw / 2 + (kind === 'cache' || kind === 'queue' || kind === 'lb' ? 3 : 0), y + (sub ? 18 : nh / 2 + 1), nw - 8);
+      if (sub) { c.font = '400 10px "Atkinson Hyperlegible",system-ui,sans-serif'; c.fillStyle = n.hl ? C.signink : C.mute; c.fillText(sub, x + nw / 2, y + 33, nw - 6); }
+      if (n.ms && !n.down) {
+        const f = Math.min(1, n.busy / n.workers); c.fillStyle = C.sunk; c.fillRect(x, y + nh + 3, nw, 4);
+        c.fillStyle = f >= 1 ? (n.q.length ? C.stop : C.wait) : C.go; c.fillRect(x, y + nh + 3, nw * f, 4);
+      }
+      if (n.q.length) {
+        const q = n.q.length, show = Math.min(q, 14), s = Math.min(6, (nw - 4) / show - 1);
+        c.fillStyle = q >= n.queue ? C.stop : C.wait;
+        for (let i = 0; i < show; i++) c.fillRect(x + 2 + i * (s + 1), y - 9, s, 6);
+        if (q > 14) { c.fillStyle = C.ink; c.font = '700 10px "JetBrains Mono",monospace'; c.textAlign = 'right'; c.fillText(q, x + nw, y - 15); }
+      }
+    }
+    for (const p of this.ps) {
+      if (p.state === 'gone' || p.state === 'work' || p.state === 'wait' || p.state === 'idle') continue;
+      let col = C.rail, r = 4.5;
+      if (p.state === 'back') col = p.flag ? C.wait : C.go;
+      if (p.bg) { col = C.mute; r = 3.5; }
+      if (cfg.color) col = cfg.color(p, C) || col;
+      if (p.state === 'lost') { col = p.blocked ? C.wait : C.stop; c.globalAlpha = Math.max(0, p.fade); }
+      if (p.trace) { col = C.stop; r = 7; }
+      c.fillStyle = col; c.beginPath(); c.arc(X(p.x), Y(p.y), r, 0, 7); c.fill(); c.globalAlpha = 1;
+    }
+  }
+  hud() {
+    if (!this.host) return;
+    const r = this.recent(), h = this.host;
+    h.querySelector('[data-st=ok]').textContent = r.ok; h.querySelector('[data-st=lost]').textContent = r.lost;
+    h.querySelector('[data-st=wait]').textContent = (r.wait / 1000).toFixed(1) + 's';
+    this.sig.dataset.s = this.signal();
+    const s = this.cfg.say ? this.cfg.say(this, r) : ''; if (this.sayEl.textContent !== s) this.sayEl.textContent = s;
+  }
+  destroy() { LIVE.delete(this); this.ro && this.ro.disconnect(); this.io && this.io.disconnect(); }
+}
+let lastTs = 0, hudT = 0;
+function loop(ts) {
+  const dt = Math.min(50, ts - lastTs || 16); lastTs = ts; hudT += dt;
+  for (const s of LIVE) { if (!s.visible) continue; if (s.playing) s.step(dt); s.draw(); }
+  if (hudT > 400) { hudT = 0; for (const s of LIVE) if (s.visible) s.hud(); }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+/* Each sim is a small recipe: nodes, a route function and the controls the learner can touch. */
+const sec = v => v.toFixed(1) + 's', perSec = v => v + '/sec';
+const C0 = { kind: 'client', label: 'Customers' };
+const leastBusy = (s, ids) => { const a = s.alive(ids); if (!a.length) return ids[0]; return a.sort((x, y) => (s.n(x).busy + s.n(x).q.length) - (s.n(y).busy + s.n(y).q.length))[0]; };
+const rateCtl = (val, max, label = 'Customers per second') => ({ k: 'range', label, min: .5, max, step: .5, val, fmt: perSec, set: (s, v) => s.rate = v });
+const SIMS = {
+  stall: () => ({
+    rate: 1.5, h: 220, nodes: { c: { ...C0, x: 0, y: .5 }, s: { label: 'Your stall', sub: 'makes tea', x: 1, y: .5, ms: 620, queue: 7 } }, edges: [['c', 's']],
+    route: (p, at) => at === 'c' ? 's' : null, okMs: 3200,
+    controls: [rateCtl(1.5, 10), { k: 'range', label: 'Helpers at the stall', min: 1, max: 5, val: 1, fmt: v => v, set: (s, v) => { s.n('s').workers = v; } }],
+    say: (s, r) => s.signal() === 'stop' ? 'Too many customers. The line is full and people are walking away.' : s.signal() === 'wait' ? 'The line is growing. People are starting to wait too long.' : 'Calm. Every customer gets chai quickly.'
+  }),
+  clientserver: () => ({
+    rate: .7, h: 240, reqWord: 'Request (the order)',
+    nodes: { a: { kind: 'client', label: 'Phone', x: 0, y: .05 }, b: { kind: 'client', label: 'Laptop', x: 0, y: .5 }, d: { kind: 'client', label: 'Tablet', x: 0, y: .95 }, s: { label: 'Server', sub: 'always on', x: 1, y: .5, ms: 300, workers: 4, queue: 8 } },
+    edges: [['a', 's'], ['b', 's'], ['d', 's']], tag: () => ({ from: 'abd'[Math.random() * 3 | 0] }), route: (p, at) => at === 's' ? null : 's',
+    controls: [{ k: 'btn', label: 'Send one request', do: s => s.spawn({ from: 'b' }) }, rateCtl(.7, 5, 'Requests per second')],
+    say: () => 'Clients ask. The server answers. Blue goes in, green comes back.'
+  }),
+  dns: () => ({
+    rate: .8, h: 240, hop: 420, okMs: 2600, reqWord: 'Your request',
+    nodes: { c: { kind: 'client', label: 'Your phone', x: 0, y: .75 }, d: { kind: 'cache', label: 'Phonebook', sub: 'DNS', x: .5, y: .05, ms: 350, workers: 4, queue: 8 }, s: { label: 'Website', sub: '142.250.1.1', x: 1, y: .75, ms: 200, workers: 4, queue: 8 } },
+    edges: [['c', 'd'], ['d', 's'], ['c', 's']], route: (p, at, s) => at === 'c' ? (s.data.mem ? 's' : 'd') : at === 'd' ? 's' : null,
+    controls: [{ k: 'toggle', label: 'Phone remembers the address', val: false, set: (s, v) => s.data.mem = v }],
+    say: (s) => s.data.mem ? 'Address remembered. The phone skips the phonebook and goes straight there.' : 'Every visit first asks the phonebook: what number is this name?'
+  }),
+  lat: () => ({
+    rate: 3, h: 220, okMs: 4000, nodes: { c: { ...C0, x: 0, y: .5 }, s: { label: 'Stall', x: 1, y: .5, ms: 1000, workers: 2, queue: 12 } }, edges: [['c', 's']],
+    route: (p, at) => at === 'c' ? 's' : null,
+    controls: [rateCtl(3, 8), { k: 'range', label: 'Time for one cup', min: .2, max: 2, step: .1, val: 1, fmt: sec, set: (s, v) => s.n('s').ms = v * 1000 }, { k: 'range', label: 'Helpers', min: 1, max: 6, val: 2, set: (s, v) => s.n('s').workers = v }],
+    say: s => { const n = s.n('s'); return `Latency: ${(n.ms / 1000).toFixed(1)} sec per cup. Throughput: ${(n.workers / (n.ms / 1000)).toFixed(1)} cups per sec at most.`; }
+  }),
+  db: () => ({
+    rate: 1, h: 220, okWord: 'Orders done', reqWord: 'Order',
+    nodes: { c: { ...C0, x: 0, y: .5 }, s: { label: 'Your stall', sub: 'in your head', x: .5, y: .5, ms: 250, workers: 3, queue: 6 }, d: { kind: 'db', label: 'Notebook', sub: 'database', x: 1, y: .5, ms: 220, workers: 3, queue: 6 } },
+    edges: [['c', 's'], ['s', 'd']], init: s => { s.data.head = 0; s.data.book = 0; s.data.useDb = true; },
+    route: (p, at, s) => at === 'c' ? 's' : at === 's' && s.data.useDb ? 'd' : null,
+    onDone: (p, s) => { s.data.useDb ? s.data.book++ : s.data.head++; },
+    controls: [{ k: 'toggle', label: 'Write orders in the notebook', val: true, set: (s, v) => { s.data.useDb = v; s.n('d').off = !v; } },
+      { k: 'btn', label: 'Power cut', do: s => { s.data.head = 0; s.setDown('s', true); setTimeout(() => s.setDown('s', false), 1500); s.data.cut = (s.data.cut || 0) + 1; } }],
+    say: s => s.data.useDb ? `Notebook holds ${s.data.book} orders. A power cut cannot erase them.` : `${s.data.head} orders in memory only. Press Power cut and they vanish.`
+  }),
+  vert: () => ({
+    rate: 5, h: 220, nodes: { c: { ...C0, x: 0, y: .5 }, s: { label: 'One big stall', x: 1, y: .5, ms: 620, workers: 1, queue: 8 } }, edges: [['c', 's']],
+    route: (p, at) => at === 'c' ? 's' : null,
+    controls: [rateCtl(5, 16), { k: 'range', label: 'Stall size', min: 1, max: 8, val: 1, fmt: v => v + 'x', set: (s, v) => { s.n('s').workers = v; s.n('s').sub = 'size ' + v + 'x'; s.data.size = v; } },
+      { k: 'btn', label: 'Stall breaks down', do: s => { s.setDown('s', true); setTimeout(() => s.setDown('s', false), 3000); } }],
+    say: s => { const z = s.data.size || 1; return `Monthly cost: ₹${(15000 * Math.pow(1.6, z - 1) | 0).toLocaleString('en-IN')}. Each size up costs more than the one before.${z === 8 ? ' This is the biggest stall on sale.' : ''}`; }
+  }),
+  horiz: () => {
+    const ids = ['s1', 's2', 's3', 's4', 's5', 's6'], nodes = { c: { ...C0, x: 0, y: .5 }, lb: { kind: 'lb', label: 'Manager', sub: 'points the way', x: .36, y: .5 } };
+    ids.forEach((id, i) => nodes[id] = { label: 'Stall ' + (i + 1), x: 1, y: .5, ms: 620, queue: 4, off: true });
+    return {
+      rate: 3, h: 300, nw: 74, nh: 38, nodes, edges: [['c', 'lb'], ...ids.map(i => ['lb', i])], route: (p, at, s) => at === 'c' ? 'lb' : at === 'lb' ? leastBusy(s, ids) : null,
+      controls: [rateCtl(3, 12), { k: 'range', label: 'Number of stalls', min: 1, max: 6, val: 1, set: (s, v) => { ids.forEach((id, i) => { const n = s.n(id); n.off = i >= v; n.y = v === 1 ? .5 : i / (v - 1); }); s.data.n = v; } },
+        { k: 'btn', label: 'Stall 1 breaks', do: s => { s.setDown('s1', true); setTimeout(() => s.setDown('s1', false), 4000); } }],
+      say: (s, r) => `${s.data.n || 1} stall${s.data.n > 1 ? 's' : ''}, ${(s.data.n || 1) * 1.6} cups per sec. ${s.signal() === 'go' ? 'Keeping up.' : 'Add stalls to keep up.'}`
+    };
+  },
+  lb: () => {
+    const ids = ['a', 'b', 'c2'];
+    return {
+      rate: 4, h: 280, nw: 84, okMs: 2400, nodes: { c: { ...C0, x: 0, y: .5 }, lb: { kind: 'lb', label: 'Load balancer', x: .4, y: .5 }, a: { label: 'Fast server', sub: 'new', x: 1, y: 0, ms: 300, workers: 2, queue: 6 }, b: { label: 'Fast server', sub: 'new', x: 1, y: .5, ms: 300, workers: 2, queue: 6 }, c2: { label: 'Slow server', sub: 'old', x: 1, y: 1, ms: 900, workers: 1, queue: 6 } },
+      edges: [['c', 'lb'], ['lb', 'a'], ['lb', 'b'], ['lb', 'c2']], init: s => { s.data.mode = 'rr'; s.data.i = 0; s.data.health = false; },
+      route: (p, at, s) => {
+        if (at === 'c') return 'lb'; if (at !== 'lb') return null;
+        const pool = s.data.health ? s.alive(ids) : ids; if (!pool.length) return ids[0];
+        if (s.data.mode === 'rand') return pool[Math.random() * pool.length | 0];
+        if (s.data.mode === 'least') return leastBusy(s, pool);
+        return pool[s.data.i++ % pool.length];
+      },
+      controls: [rateCtl(4, 10, 'Requests per second'), { k: 'seg', label: 'How to choose', val: 'rr', opts: [['rr', 'Take turns'], ['rand', 'Random'], ['least', 'Shortest line']], set: (s, v) => s.data.mode = v },
+        { k: 'toggle', label: 'Health check', val: false, set: (s, v) => s.data.health = v }, { k: 'btn', label: 'Kill a fast server', do: s => { s.setDown('a', !s.n('a').down); } }],
+      say: s => s.n('a').down && !s.data.health ? 'A server is dead and the balancer still sends people there. Turn on Health check.' : s.data.mode === 'least' ? 'Shortest line: the slow server gets fewer customers.' : s.data.mode === 'rr' ? 'Take turns: the slow server gets as many as the fast ones, so its line piles up.' : 'Random: simple, and sometimes unlucky.'
+    };
+  },
+  state: () => {
+    const ids = ['s1', 's2', 's3'];
+    return {
+      rate: 3, h: 280, nw: 84, lostWord: 'Forgotten', nodes: { c: { ...C0, x: 0, y: .5 }, lb: { kind: 'lb', label: 'Manager', x: .32, y: .5 }, s1: { label: 'Stall 1', x: .66, y: 0, ms: 250, workers: 3, queue: 6 }, s2: { label: 'Stall 2', x: .66, y: .5, ms: 250, workers: 3, queue: 6 }, s3: { label: 'Stall 3', x: .66, y: 1, ms: 250, workers: 3, queue: 6 }, r: { kind: 'cache', label: 'Shared book', sub: 'who is who', x: 1, y: .5, ms: 80, workers: 6, queue: 10, off: true } },
+      edges: [['c', 'lb'], ['lb', 's1'], ['lb', 's2'], ['lb', 's3'], ['s1', 'r'], ['s2', 'r'], ['s3', 'r']], init: s => s.data.sh = false,
+      tag: () => ({ home: ids[Math.random() * 3 | 0] }),
+      route: (p, at, s) => {
+        if (at === 'c') return 'lb'; if (at === 'lb') return ids[Math.random() * 3 | 0];
+        if (at === 'r') return null;
+        if (s.data.sh) return 'r';
+        if (at !== p.tag.home) { s.lose(p); return undefined; }
+        return null;
+      },
+      controls: [{ k: 'toggle', label: 'Keep customer details in a shared book', val: false, set: (s, v) => { s.data.sh = v; s.n('r').off = !v; } }],
+      say: s => s.data.sh ? 'Any stall can serve anyone. The stalls hold nothing personal, so they are stateless.' : 'Each stall only knows its own regulars. If the manager sends you elsewhere: "Who are you?"'
+    };
+  },
+  auto: () => {
+    const ids = ['s1', 's2', 's3', 's4', 's5'], nodes = { c: { ...C0, x: 0, y: .5 }, lb: { kind: 'lb', label: 'Manager', x: .36, y: .5 } };
+    ids.forEach((id, i) => nodes[id] = { label: 'Stall ' + (i + 1), x: 1, y: i / 4, ms: 620, queue: 4, off: i > 0 });
+    return {
+      h: 300, nw: 74, nh: 36, nodes, edges: [['c', 'lb'], ...ids.map(i => ['lb', i])], route: (p, at, s) => at === 'c' ? 'lb' : at === 'lb' ? leastBusy(s, ids) : null,
+      init: s => { s.data.auto = true; s.data.next = 0; s.data.on = 1; s.data.cost = 0; },
+      tick: (s, dt) => {
+        s.rate = 3.5 + 3.3 * Math.sin(s.t / 7000 - 1.2); s.data.cost += s.data.on * dt;
+        if (s.data.auto && s.t > s.data.next) {
+          const up = s.alive(ids), load = s.rate / (up.length * 1.6);
+          if (load > .75 && up.length < 5) { s.n(ids[up.length]).off = false; s.data.next = s.t + 1500; }
+          else if (load < .4 && up.length > 1) { s.n(ids[up.length - 1]).off = true; s.data.next = s.t + 2500; }
+          s.data.on = s.alive(ids).length;
+        }
+      },
+      controls: [{ k: 'toggle', label: 'Autoscaling', val: true, set: (s, v) => { s.data.auto = v; if (!v) { ids.forEach((id, i) => s.n(id).off = i > 0); s.data.on = 1; } } }],
+      say: s => `Customers now: ${s.rate.toFixed(1)}/sec. Stalls open: ${s.data.on}. ${s.data.auto ? 'Stalls open at rush hour and close when it is quiet.' : 'Only one stall, whatever the crowd.'}`
+    };
+  },
+  cache: () => ({
+    rate: 5, h: 260, okMs: 1800, nodes: { c: { ...C0, x: 0, y: .5 }, s: { label: 'Server', x: .34, y: .5, ms: 100, workers: 8, queue: 8 }, k: { kind: 'cache', label: 'Cache', sub: 'ready flask', x: .67, y: 0, ms: 30, workers: 12, queue: 10 }, d: { kind: 'db', label: 'Database', sub: 'slow', x: 1, y: .5, ms: 900, workers: 3, queue: 8 } },
+    edges: [['c', 's'], ['s', 'k'], ['k', 'd'], ['s', 'd']], init: s => { s.data.on = true; s.data.hit = .8; },
+    route: (p, at, s) => { if (at === 'c') return 's'; if (at === 's') { if (s.data.on) { p.tag.hit = Math.random() < s.data.hit; return 'k'; } return 'd'; } if (at === 'k') return p.tag.hit ? null : 'd'; return null; },
+    controls: [rateCtl(5, 12, 'Requests per second'), { k: 'range', label: 'Share found in cache', min: 0, max: 95, step: 5, val: 80, fmt: v => v + '%', set: (s, v) => s.data.hit = v / 100 }, { k: 'toggle', label: 'Cache on', val: true, set: (s, v) => { s.data.on = v; s.n('k').off = !v; } }],
+    say: s => s.data.on ? 'Most answers come from the flask of ready chai. The kitchen stays calm.' : 'Every request goes all the way to the slow database.'
+  }),
+  stale: () => ({
+    rate: 3, h: 240, okMs: 2000, okWord: 'Answers', legend: '<span><i style="background:var(--wait)"></i>Old price served</span>',
+    nodes: { c: { ...C0, x: 0, y: .5 }, k: { kind: 'cache', label: 'Price card', sub: 'cache', x: .5, y: .5, ms: 60, workers: 8, queue: 8 }, d: { kind: 'db', label: 'Owner', sub: 'true price', x: 1, y: .5, ms: 500, workers: 3, queue: 8 } },
+    edges: [['c', 'k'], ['k', 'd']], init: s => { Object.assign(s.data, { real: 10, card: 10, ttl: 8, until: 8000, wrong: 0, inval: false }); },
+    tick: s => { if (s.t > s.data.until) { s.data.expired = true; } },
+    route: (p, at, s) => {
+      if (at === 'c') return 'k';
+      if (at === 'k') { if (s.data.expired) { s.data.expired = false; s.data.fetching = true; return 'd'; } p.flag = s.data.card !== s.data.real; if (p.flag) s.data.wrong++; return null; }
+      s.data.card = s.data.real; s.data.until = s.t + s.data.ttl * 1000; return null;
+    },
+    controls: [{ k: 'btn', label: 'Raise the price', do: s => { s.data.real += 5; if (s.data.inval) { s.data.card = s.data.real; } } }, { k: 'toggle', label: 'Fix the card on every change', val: false, set: (s, v) => s.data.inval = v },
+      { k: 'range', label: 'Card expires after', min: 2, max: 15, val: 8, fmt: v => v + ' sec', set: (s, v) => { s.data.ttl = v; s.data.until = Math.min(s.data.until, s.t + v * 1000); } }],
+    say: s => `True price ₹${s.data.real}. Card says ₹${s.data.card}. ${s.data.real === s.data.card ? 'They match.' : 'Customers are being told the wrong price!'} Wrong answers so far: ${s.data.wrong}.`
+  }),
+  cdn: () => ({
+    rate: 3, h: 250, okMs: 1600, nodes: { d: { kind: 'client', label: 'Delhi users', x: 0, y: .1 }, g: { kind: 'client', label: 'Guwahati users', x: 0, y: .9 }, o: { label: 'Main server', sub: 'Mumbai', x: 1, y: .5, ms: 300, workers: 3, queue: 10, hop: 1200 }, e1: { kind: 'cache', label: 'Near copy', sub: 'Delhi', x: .3, y: .1, ms: 30, workers: 6, queue: 8, hop: 160, off: true }, e2: { kind: 'cache', label: 'Near copy', sub: 'Guwahati', x: .3, y: .9, ms: 30, workers: 6, queue: 8, hop: 160, off: true } },
+    edges: [['d', 'o'], ['g', 'o'], ['d', 'e1'], ['g', 'e2']], init: s => s.data.on = false, tag: () => ({ from: Math.random() < .5 ? 'd' : 'g' }),
+    route: (p, at, s) => { if (at === 'o' || at === 'e1' || at === 'e2') return null; return s.data.on ? (at === 'd' ? 'e1' : 'e2') : 'o'; },
+    controls: [{ k: 'toggle', label: 'Turn on CDN', val: false, set: (s, v) => { s.data.on = v; s.n('e1').off = !v; s.n('e2').off = !v; } }],
+    say: s => s.data.on ? 'Photos and videos are served from a copy near each user.' : 'Everyone travels all the way to Mumbai for every photo.'
+  }),
+  index: () => ({
+    rate: 3, h: 220, okMs: 2200, nodes: { c: { ...C0, x: 0, y: .5 }, s: { label: 'App', x: .45, y: .5, ms: 80, workers: 8, queue: 8 }, d: { kind: 'db', label: 'Register', sub: 'page by page', x: 1, y: .5, ms: 1400, workers: 4, queue: 8 } }, edges: [['c', 's'], ['s', 'd']],
+    route: (p, at) => at === 'c' ? 's' : at === 's' ? 'd' : null,
+    controls: [rateCtl(3, 10, 'Searches per second'), { k: 'toggle', label: 'Add an index', val: false, set: (s, v) => { s.n('d').ms = v ? 90 : 1400; s.n('d').sub = v ? 'uses the index' : 'page by page'; s.data.ix = v; } }],
+    say: s => s.data.ix ? 'Finding a name now takes about 20 page flips out of a million.' : 'Without an index the database reads the whole register for each search.'
+  }),
+  replica: () => ({
+    rate: 6, h: 280, nw: 84, nodes: { c: { ...C0, x: 0, y: .5 }, s: { label: 'App', x: .34, y: .5, ms: 40, workers: 12, queue: 12 }, p: { kind: 'db', label: 'Main copy', sub: 'writes', x: 1, y: 0, ms: 600, workers: 3, queue: 8 }, r1: { kind: 'db', label: 'Copy 1', sub: 'reads', x: 1, y: .5, ms: 600, workers: 3, queue: 8, off: true }, r2: { kind: 'db', label: 'Copy 2', sub: 'reads', x: 1, y: 1, ms: 600, workers: 3, queue: 8, off: true } },
+    edges: [['c', 's'], ['s', 'p'], ['s', 'r1'], ['s', 'r2'], ['p', 'r1'], ['p', 'r2']], init: s => s.data.n = 0,
+    tag: () => ({ w: Math.random() < .15 }),
+    route: (p, at, s) => { if (at === 'c') return 's'; if (at === 's') { if (p.tag.w) return 'p'; const pool = ['p', 'r1', 'r2'].slice(s.n('p').down ? 1 : 0, 1 + s.data.n); return leastBusy(s, pool.length ? pool : ['p']); } return null; },
+    color: (p, C) => p.tag.w && p.state === 'move' ? C.wait : null, legend: '<span><i style="background:var(--wait)"></i>Write (new data)</span>',
+    controls: [rateCtl(6, 16, 'Requests per second'), { k: 'range', label: 'Read copies', min: 0, max: 2, val: 0, set: (s, v) => { s.data.n = v; s.n('r1').off = v < 1; s.n('r2').off = v < 2; } },
+      { k: 'btn', label: 'Main copy fails', do: s => { s.setDown('p', true); setTimeout(() => { s.setDown('p', false); }, 3500); } }],
+    say: s => s.n('p').down ? (s.data.n ? 'Reads continue from copies. Writes stop until a copy is promoted.' : 'No copies, so everything is down.') : `85% of work is reading. ${s.data.n} extra cop${s.data.n === 1 ? 'y' : 'ies'} share that work.`
+  }),
+  shard: () => {
+    const ids = ['d1', 'd2', 'd3', 'd4'], names = [['A to Z'], ['A to M', 'N to Z'], ['A to H', 'I to P', 'Q to Z'], ['A to F', 'G to L', 'M to R', 'S to Z']];
+    const nodes = { c: { ...C0, x: 0, y: .5 }, s: { label: 'Router', sub: 'reads the key', x: .36, y: .5, ms: 30, workers: 20, queue: 20 } };
+    ids.forEach((id, i) => nodes[id] = { kind: 'db', label: 'Shard ' + (i + 1), x: 1, y: .5, ms: 450, workers: 3, queue: 8, off: i > 0 });
+    return {
+      rate: 8, h: 300, nh: 38, nw: 84, nodes, edges: [['c', 's'], ...ids.map(i => ['s', i])], init: s => { s.data.n = 1; s.data.hot = false; },
+      route: (p, at, s) => { if (at === 'c') return 's'; if (at !== 's') return null; if (s.data.hot && Math.random() < .7) return 'd1'; return ids[Math.random() * s.data.n | 0]; },
+      controls: [rateCtl(8, 22, 'Requests per second'), { k: 'range', label: 'Shards', min: 1, max: 4, val: 1, set: (s, v) => { s.data.n = v; ids.forEach((id, i) => { const n = s.n(id); n.off = i >= v; n.y = v === 1 ? .5 : i / (v - 1); n.sub = names[v - 1][i]; }); } }, { k: 'toggle', label: 'Celebrity on Shard 1', val: false, set: (s, v) => s.data.hot = v }],
+      say: s => s.data.hot ? 'One famous user sends most traffic to one shard. This is called a hot shard.' : `The data is cut into ${s.data.n} piece${s.data.n > 1 ? 's' : ''}. Each piece is a separate database.`
+    };
+  },
+  cap: () => ({
+    rate: 3, h: 280, nw: 84, okWord: 'Answered', lostWord: 'Refused', legend: '<span><i style="background:var(--wait)"></i>Answer may be out of date</span>',
+    nodes: { a: { kind: 'client', label: 'Patna users', x: 0, y: .1 }, b: { kind: 'client', label: 'Pune users', x: 0, y: .9 }, n1: { kind: 'db', label: 'Patna branch', x: .55, y: .1, ms: 200, workers: 4, queue: 8 }, n2: { kind: 'db', label: 'Pune branch', x: .55, y: .9, ms: 200, workers: 4, queue: 8 }, l: { kind: 'lb', label: 'Phone line', sub: 'keeps in sync', x: 1, y: .5 } },
+    edges: [['a', 'n1'], ['b', 'n2'], ['n1', 'l'], ['n2', 'l']], init: s => { s.data.cut = false; s.data.mode = 'ap'; s.data.stale = 0; }, tag: () => ({ from: Math.random() < .5 ? 'a' : 'b' }),
+    route: (p, at, s) => {
+      if (at === 'a') return 'n1'; if (at === 'b') return 'n2';
+      if (s.data.cut && s.data.mode === 'cp') { s.lose(p); return undefined; }
+      if (s.data.cut) { p.flag = true; s.data.stale++; } return null;
+    },
+    controls: [{ k: 'btn', label: 'Cut / restore the phone line', do: s => { s.data.cut = !s.data.cut; s.n('l').down = s.data.cut; } }, { k: 'seg', label: 'When the line is cut', val: 'ap', opts: [['ap', 'Stay open'], ['cp', 'Refuse orders']], set: (s, v) => s.data.mode = v }],
+    say: s => !s.data.cut ? 'Line is fine. Both branches agree, and everyone gets a correct answer.' : s.data.mode === 'ap' ? `Stay open: customers are served, but branches may disagree. Risky answers: ${s.data.stale}.` : 'Refuse: every answer is correct, but customers are turned away.'
+  }),
+  queue: () => ({
+    rate: 3, h: 250, okMs: 2200, okWord: 'Got a reply', bg: true, legend: '<span><i style="background:var(--mute)"></i>Work happening behind the scenes</span>',
+    nodes: { c: { ...C0, x: 0, y: .5 }, s: { label: 'Counter', x: .36, y: .5, ms: 80, workers: 8, queue: 8 }, q: { kind: 'queue', label: 'Token board', x: .68, y: 0, ms: 1, workers: 30, queue: 30, ack: true, off: false }, k: { label: 'Kitchen', sub: 'slow worker', x: 1, y: .5, ms: 700, workers: 2, queue: 40 } },
+    edges: [['c', 's'], ['s', 'q'], ['q', 'k'], ['s', 'k']], init: s => { s.data.on = false; s.patience = 7000; },
+    route: (p, at, s) => { if (at === 'c') return 's'; if (at === 's') return s.data.on ? 'q' : 'k'; if (at === 'q') return 'k'; return null; },
+    controls: [rateCtl(3, 8), { k: 'toggle', label: 'Use a queue (give tokens)', val: false, set: (s, v) => { s.data.on = v; s.n('q').off = !v; s.n('k').queue = v ? 60 : 6; } }],
+    say: (s) => s.data.on ? `Customers get a token at once and sit down. Orders waiting in kitchen: ${s.n('k').q.length}.` : 'Everyone stands at the counter until their food is ready.'
+  }),
+  pubsub: () => ({
+    rate: 1.5, h: 280, nw: 84, okMs: 2500, okWord: 'Orders done', legend: '<span><i style="background:var(--mute)"></i>Message to a team</span>',
+    nodes: { c: { ...C0, x: 0, y: .5 }, o: { label: 'Order', x: .3, y: .5, ms: 120, workers: 4, queue: 8 }, b: { kind: 'queue', label: 'Notice board', sub: 'event bus', x: .6, y: .5, ms: 1, workers: 30, queue: 30, ack: true, off: true }, k: { label: 'Kitchen', x: 1, y: 0, ms: 500, workers: 2, queue: 12 }, r: { label: 'Rewards', x: 1, y: .5, ms: 500, workers: 2, queue: 12 }, m: { label: 'SMS', x: 1, y: 1, ms: 500, workers: 2, queue: 12 } },
+    edges: [['c', 'o'], ['o', 'k'], ['k', 'r'], ['r', 'm'], ['o', 'b'], ['b', 'k'], ['b', 'r'], ['b', 'm']], init: s => { s.data.bus = false; },
+    route: (p, at, s) => {
+      if (at === 'c') return 'o';
+      if (s.data.bus) { if (at === 'o') return 'b'; if (at === 'b') return ['k', 'r', 'm']; return null; }
+      if (at === 'o') return 'k'; if (at === 'k') return 'r'; if (at === 'r') return 'm'; return null;
+    },
+    controls: [{ k: 'toggle', label: 'Use a notice board', val: false, set: (s, v) => { s.data.bus = v; s.n('b').off = !v; } }, { k: 'btn', label: 'SMS team goes on break', do: s => { s.setDown('m', !s.n('m').down); } }],
+    say: s => s.data.bus ? 'The order posts one notice. Each team reads it in its own time. New teams can join with no changes.' : 'The order must call every team, one after another, and wait for each.'
+  }),
+  micro: () => {
+    const sv = ['o', 'p', 'd'];
+    return {
+      rate: 3, h: 280, nw: 88, nodes: { c: { ...C0, x: 0, y: .5 }, m: { label: 'One big app', sub: 'does everything', x: .6, y: .5, ms: 300, workers: 6, queue: 10 }, o: { label: 'Orders', x: 1, y: 0, ms: 300, workers: 3, queue: 8, off: true }, p: { label: 'Payments', x: 1, y: .5, ms: 300, workers: 3, queue: 8, off: true }, d: { label: 'Delivery', x: 1, y: 1, ms: 300, workers: 3, queue: 8, off: true } },
+      edges: [['c', 'm'], ['c', 'o'], ['c', 'p'], ['c', 'd']], init: s => { s.data.split = false; s.data.bug = false; }, tag: () => ({ t: sv[Math.random() * 3 | 0] }),
+      route: (p, at, s) => at === 'c' ? (s.data.split ? p.tag.t : 'm') : null,
+      controls: [{ k: 'toggle', label: 'Split into small services', val: false, set: (s, v) => { s.data.split = v; s.n('m').off = v; sv.forEach(i => s.n(i).off = !v); if (s.data.bug) { s.setDown('m', !v); s.setDown('p', v); } } },
+        { k: 'btn', label: 'Bug in payment code', do: s => { s.data.bug = !s.data.bug; s.setDown(s.data.split ? 'p' : 'm', s.data.bug); } }],
+      say: s => !s.data.bug ? (s.data.split ? 'Three small teams, three small apps. Each can change on its own.' : 'One big app is simple to run. All features live together.') : s.data.split ? 'Only payments are broken. People can still browse and track orders.' : 'One bug in payments took the whole app down.'
+    };
+  },
+  gate: () => ({
+    rate: 3, h: 250, nw: 84, okMs: 1800, lostWord: 'Lost', legend: '<span><i style="background:var(--wait)"></i>Bot or spam request</span>',
+    nodes: { c: { ...C0, x: 0, y: .1 }, b: { kind: 'client', label: 'Spam bot', x: 0, y: .9 }, g: { kind: 'lb', label: 'Gatekeeper', sub: 'API gateway', x: .42, y: .5 }, s: { label: 'Server', x: 1, y: .5, ms: 300, workers: 4, queue: 10 } },
+    edges: [['c', 'g'], ['b', 'g'], ['g', 's']], init: s => { s.data.on = false; s.data.bot = 0; s.data.win = []; s.n('g').gate = (p, S) => { if (!S.data.on || !p.tag.bot) return true; S.data.win = S.data.win.filter(t => t > S.t - 1000); if (S.data.win.length < 2) { S.data.win.push(S.t); return true; } return false; }; },
+    tick: (s, dt) => { s.data.bacc = (s.data.bacc || 0) + s.data.bot * dt / 1000; while (s.data.bacc >= 1) { s.data.bacc--; s.spawn({ from: 'b', bot: true }); } },
+    route: (p, at) => (at === 'c' || at === 'b') ? 'g' : at === 'g' ? 's' : null, color: (p, C) => p.tag.bot && p.state === 'move' ? C.wait : null,
+    controls: [{ k: 'range', label: 'Spam requests per sec', min: 0, max: 30, val: 0, fmt: perSec, set: (s, v) => s.data.bot = v }, { k: 'toggle', label: 'Limit each user to 2 per sec', val: false, set: (s, v) => s.data.on = v }],
+    say: s => s.data.on ? `Spam blocked at the gate: ${s.blocked}. Real customers get through.` : s.data.bot ? 'The bot fills every queue, and real customers lose out.' : 'Normal day. Drag the spam slider up.'
+  }),
+  spof: () => ({
+    rate: 3, h: 280, nw: 76, nodes: { c: { ...C0, x: 0, y: .5 }, l: { kind: 'lb', label: 'Balancer', x: .3, y: .25 }, l2: { kind: 'lb', label: 'Balancer 2', x: .3, y: .8, off: true }, s: { label: 'Server', x: .65, y: .25, ms: 250, workers: 4, queue: 8 }, s2: { label: 'Server 2', x: .65, y: .8, ms: 250, workers: 4, queue: 8, off: true }, d: { kind: 'db', label: 'Database', x: 1, y: .25, ms: 200, workers: 4, queue: 8 }, d2: { kind: 'db', label: 'Backup DB', x: 1, y: .8, ms: 200, workers: 4, queue: 8, off: true } },
+    edges: [['c', 'l'], ['c', 'l2'], ['l', 's'], ['l', 's2'], ['l2', 's'], ['l2', 's2'], ['s', 'd'], ['s', 'd2'], ['s2', 'd'], ['s2', 'd2']],
+    route: (p, at, s) => { if (at === 'c') return s.alive(['l', 'l2'])[0] || 'l'; if (at === 'l' || at === 'l2') return s.alive(['s', 's2'])[0] || 's'; if (at === 's' || at === 's2') return s.alive(['d', 'd2'])[0] || 'd'; return null; },
+    init: s => s.data.bk = false,
+    controls: [{ k: 'toggle', label: 'Add a backup of everything', val: false, set: (s, v) => { s.data.bk = v; ['l2', 's2', 'd2'].forEach(i => s.n(i).off = !v); } }, ...[['l', 'Break balancer'], ['s', 'Break server'], ['d', 'Break database']].map(([id, label]) => ({ k: 'btn', label, do: s => s.setDown(id, !s.n(id).down) }))],
+    say: s => { const d = ['l', 's', 'd'].filter(i => s.n(i).down).length; return !d ? 'All parts working. Now break one.' : s.data.bk ? 'A backup took over. Customers did not notice.' : 'One part failed and the whole system stopped. That part is a single point of failure.'; }
+  }),
+  retry: () => ({
+    rate: 1.2, h: 240, hop: 400, okMs: 3000, okWord: 'Paid', lostWord: 'No reply', nodes: { c: { kind: 'client', label: 'You', x: 0, y: .5 }, a: { label: 'Payment app', x: .5, y: .5, ms: 200, workers: 4, queue: 8 }, b: { kind: 'db', label: 'Bank', sub: 'moves money', x: 1, y: .5, ms: 200, workers: 4, queue: 8 } },
+    edges: [['c', 'a'], ['a', 'b']], init: s => { Object.assign(s.data, { retry: false, key: false, double: 0, id: 0, seen: new Set() }); },
+    tag: s => ({ id: ++s.data.id }),
+    route: (p, at, s) => {
+      if (at === 'c') return 'a'; if (at === 'a') return 'b';
+      const dup = s.data.seen.has(p.tag.id);
+      if (!dup) s.data.seen.add(p.tag.id); else if (!s.data.key) s.data.double++;
+      if (Math.random() < .35 && !p.tag.tried) { s.lose(p); if (s.data.retry) { const t = { ...p.tag, tried: true }; setTimeout(() => s.spawn(t), 300); } return undefined; }
+      return null;
+    },
+    controls: [{ k: 'toggle', label: 'Retry when no reply', val: false, set: (s, v) => s.data.retry = v }, { k: 'toggle', label: 'Attach a unique payment ID', val: false, set: (s, v) => s.data.key = v }],
+    say: s => `Charged twice: ${s.data.double} times. ${s.data.retry && !s.data.key ? 'Retrying without an ID charges people twice!' : s.data.retry ? 'The bank sees the ID and ignores repeats. Safe.' : 'One in three replies goes missing and nobody tries again.'}`
+  }),
+  breaker: () => ({
+    rate: 3, h: 250, nw: 88, okMs: 2500, legend: '<span><i style="background:var(--wait)"></i>Quick "try later" reply</span>',
+    nodes: { c: { ...C0, x: 0, y: .5 }, s: { label: 'Your app', sub: '6 workers', x: .45, y: .5, ms: 200, workers: 6, queue: 8 }, x: { label: 'SMS partner', sub: 'outside company', x: 1, y: .5, ms: 150, workers: 20, queue: 0 } },
+    edges: [['c', 's'], ['s', 'x']], init: s => { s.data.brk = false; s.data.bad = false; },
+    tick: s => { s.n('s').ms = s.data.bad && !s.data.brk ? 5000 : 200; s.n('x').label = s.data.bad ? 'Hanging' : 'SMS partner'; },
+    route: (p, at, s) => at === 'c' ? 's' : at === 's' ? ((s.data.bad && s.data.brk) ? (p.flag = true, null) : 'x') : null,
+    controls: [rateCtl(3, 8, 'Requests per second'), { k: 'btn', label: 'Partner stops answering', do: s => s.data.bad = !s.data.bad }, { k: 'toggle', label: 'Circuit breaker', val: false, set: (s, v) => s.data.brk = v }],
+    say: s => !s.data.bad ? 'All good. Press the button to make the partner hang.' : s.data.brk ? 'Breaker tripped. The app stops calling the partner and answers instantly.' : 'Every worker is stuck waiting on the partner, so your whole app freezes.'
+  }),
+};
+/* Course content. Every lesson: problem, simple idea, try it, real life, cost, words, deeper, quiz. */
+const STATIONS = [
+{ id: 'basics', name: 'Chai Stall Junction', size: '1 stall, 50 customers a day', blurb: 'You open a small chai stall. Every big app in the world starts with the same few parts as your stall.', lessons: [
+ { id: 'system', t: 'What is a system?', sub: 'Parts working together', p: 'You sell chai at a bus stand. Customers come, you make tea, they pay and go. It works fine. Then one morning a school trip arrives and 60 people line up at once.',
+   i: 'A system is a set of parts that work together to do a job. System design means planning those parts before the crowd arrives.', sim: 'stall', try: 'Push <b>Customers per second</b> to 6. Watch the line fill up and the signal go red. Then add helpers.',
+   real: [['IRCTC', 'Thousands of people book the same train at 10 am. The site is a system under pressure.'], ['Your bank', 'The app, the ATM and the branch all use the same parts behind the scenes.'], ['A hospital', 'Reception, doctors and pharmacy each do one job, and patients flow between them.']],
+   cost: 'Planning takes time. A stall with 50 customers needs no big plan. Design for the crowd you expect, plus a little more.',
+   words: [['System', 'Parts working together for one job.'], ['Scale', 'Growing to serve many more people.'], ['Request', 'One thing someone asks for. One order of chai.']],
+   deep: 'Engineers split needs into two lists. Functional needs say what it does (take orders). Non-functional needs say how well (serve 1,000 people a minute, stay up 99.9% of the time). Most of system design is about the second list.',
+   quiz: [['What does system design mostly plan for?', ['Making the logo look nice', 'How parts work together as demand grows', 'Which phone to buy', 'Writing the fastest code'], 1, 'It is about the parts and how they cope when many people arrive.'], ['Your stall gets 60 people at once. In system terms, that is:', ['A traffic spike', 'A bug', 'A database', 'A password'], 0, 'A sudden jump in demand is called a traffic spike.']] },
+ { id: 'client', t: 'Client and server', sub: 'The one who asks, the one who answers', p: 'A customer shouts "one chai!" and you make it. The customer never enters your kitchen. The customer only asks. You do the work and hand it over.',
+   i: 'The client asks. The server answers. Your phone is a client. A computer that runs all day somewhere else is the server.', sim: 'clientserver', try: 'Press <b>Send one request</b>. Follow the blue dot in and the green dot back. That round trip happens each time you open an app.',
+   real: [['Instagram', 'Your phone asks for new photos. A server sends them.'], ['ATM', 'The machine is a client. The bank computer is the server.'], ['A waiter', 'You order from the waiter. The kitchen, like a server, does the work.']],
+   cost: 'If the server is off, every client is stuck. Everything now depends on that one place.',
+   words: [['Client', 'The one asking. Usually your phone or browser.'], ['Server', 'A computer that waits for requests and answers them.'], ['Response', 'The answer that comes back.'], ['API', 'The menu of things a server allows you to ask for.']],
+   deep: 'Clients talk to servers using agreed rules, mostly HTTP. A request names an action (GET to read, POST to send) and a path such as /orders/42. An API is a list of those paths and what each one returns, like a menu card.',
+   quiz: [['When you scroll Instagram, your phone is the:', ['Server', 'Client', 'Database', 'Router'], 1, 'Your phone asks. So it is the client.'], ['An API is most like:', ['A restaurant menu', 'A delivery bike', 'A plate', 'A chef'], 0, 'It lists what you may ask for, and how to ask.']] },
+ { id: 'dns', t: 'How your phone finds a website', sub: 'DNS, the internet phonebook', p: 'You want to call a friend. You remember the name, not the number, so you open Contacts. Computers have the same problem: people type google.com, but computers only reach numbers.',
+   i: 'DNS is the phonebook of the internet. It turns a name like google.com into a number the computer can reach.', sim: 'dns', try: 'Watch the dots stop at the phonebook first. Turn on <b>Phone remembers the address</b> and see the faster direct path.',
+   real: [['Contacts app', 'You tap "Mummy". The phone dials the number.'], ['Google Maps', 'You type a place name, and it finds the exact location.'], ['Any website', 'Each first visit starts with a DNS lookup that takes a few milliseconds.']],
+   cost: 'Remembered numbers can go out of date. If a website moves, some people reach the old address for a while.',
+   words: [['DNS', 'Domain Name System. The phonebook of the internet.'], ['Domain', 'A website name such as irctc.co.in.'], ['IP address', 'The number of a computer on the internet.']],
+   deep: 'Answers are saved for a set time called TTL (time to live). Browsers, phones and internet providers all keep copies. Big sites return different numbers depending on where you are, so DNS also helps send you to a nearby server.',
+   quiz: [['DNS does what?', ['Stores your photos', 'Turns names into numbers', 'Speeds up your battery', 'Blocks ads'], 1, 'It is the phonebook: name in, number out.'], ['Why do phones remember DNS answers?', ['To skip the lookup and go faster', 'To save photos', 'To hide your name', 'To charge faster'], 0, 'No repeat lookup means less waiting.']] },
+ { id: 'latency', t: 'Latency and throughput', sub: 'How fast, and how many', p: 'A customer asks: how long for one cup? Your landlord asks: how many cups in a day? Those are two different questions, and you can be good at one and bad at the other.',
+   i: 'Latency is how long one customer waits. Throughput is how many customers you serve per second. A faster worker cuts latency. More workers raise throughput.', sim: 'lat', try: 'Change <b>Time for one cup</b> and <b>Helpers</b>. Read the bar under the picture to see which number moves.',
+   real: [['Highway', 'Speed limit is latency. Number of lanes is throughput.'], ['Bank queue', 'Each teller takes 5 minutes. Opening 4 counters serves 4 times as many people, at the same 5 minutes each.'], ['Internet plan', '"100 Mbps" is throughput. Game lag is latency.']],
+   cost: 'Adding workers does not make one cup quicker. Nine mothers cannot make a baby in one month. Some work cannot be shared.',
+   words: [['Latency', 'Waiting time for one request.'], ['Throughput', 'Amount of work done per second.'], ['ms', 'Millisecond. One thousandth of a second.'], ['RPS', 'Requests per second.']],
+   deep: 'Averages hide pain. If 99 people wait 1 second and one waits 100 seconds, the average looks fine at 2 seconds, yet someone had a terrible time. So teams track p95 and p99: the wait that 95% or 99% of users beat.',
+   quiz: [['You add a second chai maker. What improves most?', ['Throughput', 'The taste', 'Latency of one cup', 'DNS'], 0, 'Each cup takes as long as before, but more cups come out each minute.'], ['Game lag is a problem of:', ['Throughput', 'Latency', 'Storage', 'DNS'], 1, 'Lag is the delay on each action, so it is latency.']] },
+ { id: 'database', t: 'The database', sub: 'A notebook that never forgets', p: 'You keep credit accounts in your head. Raju owes ₹40, Meena owes ₹25. Then you get a fever for a week and forget everything. Your money is gone.',
+   i: 'A database stores information safely so it survives when the server restarts. Servers can forget. The database must not.', sim: 'db', try: 'Turn off the notebook, let orders build up, then press <b>Power cut</b>. Now turn the notebook on and try the same thing.',
+   real: [['Bank passbook', 'Your balance is a stored record that stays when the branch closes.'], ['WhatsApp backup', 'New phone, same chats, because they were saved outside the phone.'], ['School register', 'Attendance stays on paper after the teacher goes home.']],
+   cost: 'Writing to disk is slower than remembering. The database often becomes the slowest part of the system. Later stations are mostly about helping it.',
+   words: [['Database', 'Organised, safe storage for data.'], ['Memory (RAM)', 'Fast, but wiped when the power goes.'], ['Disk', 'Slower, but keeps data with no power.'], ['Query', 'A question you ask the database.']],
+   deep: 'Reading from memory takes about 100 nanoseconds. Reading from a fast SSD takes about 100 microseconds, a thousand times slower. Reading across a country takes tens of milliseconds. These gaps explain why caches and copies exist.',
+   quiz: [['Why not keep everything in the server\'s memory?', ['It is wiped on a restart', 'It has no colours', 'It is illegal', 'It is too fast'], 0, 'Memory clears when power goes. Disk keeps it.'], ['Which is usually slowest?', ['Memory', 'Database on disk', 'A quick calculation', 'Adding two numbers'], 1, 'Disk and network work takes far longer.']] },
+]},
+{ id: 'crowd', name: 'Rush Hour Road', size: '5 stalls, 5,000 customers a day', blurb: 'Word spreads. Customers fill the road. One stall is not enough. How do you grow without chaos?', lessons: [
+ { id: 'vertical', t: 'Vertical scaling', sub: 'Buy a bigger stall', p: 'Your stall is overflowing. The easy answer: swap the small stove for a giant one, and the small cart for a bigger shop.',
+   i: 'Vertical scaling means making one machine bigger. More power, same single machine.', sim: 'vert', try: 'Raise <b>Stall size</b> until the signal is green. Then read the cost. Then press <b>Stall breaks down</b>.',
+   real: [['Bigger truck', 'One truck carrying more. It still gets stuck on one bad road.'], ['Phone upgrade', 'Same one phone, more RAM.'], ['Stock exchange', 'Some trading systems stay on one very powerful machine so everything happens in strict order.']],
+   cost: 'Prices climb faster than power, there is a biggest size on sale, and when that one machine fails, you have nothing left.',
+   words: [['Vertical scaling', 'Growing by getting a bigger machine. Also called scaling up.'], ['CPU', 'The part of a computer that does the work.'], ['RAM', 'Short-term memory of a computer.']],
+   deep: 'Start here. It needs no code changes and small teams should use it first. Stack Overflow famously ran for years on a handful of powerful machines. Move to many machines when cost or risk forces you.',
+   quiz: [['What is the biggest risk of one huge machine?', ['It looks odd', 'If it fails, everything stops', 'It is too quiet', 'It uses no power'], 1, 'One machine means one place to fail.'], ['Vertical scaling is also called:', ['Scaling up', 'Scaling out', 'Sharding', 'Caching'], 0, 'Up means bigger. Out means more machines.']] },
+ { id: 'horizontal', t: 'Horizontal scaling', sub: 'Open more stalls', p: 'Instead of one giant stall, you open three normal ones side by side. If one stove dies, the other two keep selling.',
+   i: 'Horizontal scaling means adding more machines. Many normal machines share the work.', sim: 'horiz', try: 'Set customers to 7, then add stalls until the signal turns green. Now press <b>Stall 1 breaks</b>. See how little changes.',
+   real: [['Toll plaza', 'More booths open during holidays.'], ['Supermarket', 'More billing counters at weekends.'], ['Amazon and Flipkart', 'Thousands of normal servers serve one website.']],
+   cost: 'You now have many machines to look after, and you need someone to direct customers to each stall.',
+   words: [['Horizontal scaling', 'Growing by adding machines. Also called scaling out.'], ['Node', 'One machine in a group.'], ['Cluster', 'A group of machines working as one.']],
+   deep: 'Horizontal growth only helps when the work can be split. Serving web pages splits easily. Keeping one shared bank balance is harder. That is why later lessons deal with shared data so carefully.',
+   quiz: [['Three normal servers instead of one huge server gives you:', ['No failures ever', 'Survival when one dies', 'Free electricity', 'No need for databases'], 1, 'Others keep working when one fails.'], ['Which is horizontal scaling?', ['Adding more RAM', 'Adding more billing counters', 'A larger stove', 'A faster CPU'], 1, 'More of the same units, sharing the work.']] },
+ { id: 'loadbalancer', t: 'Load balancer', sub: 'The manager at the gate', p: 'You have three stalls, but customers all crowd stall 1 because it is nearest. Stalls 2 and 3 sit empty. You put a manager at the entrance to point each person to a stall.',
+   i: 'A load balancer stands in front of your servers and sends each request to one of them, so no server is overloaded.', sim: 'lb', try: 'Try <b>Take turns</b>, then <b>Shortest line</b>. Then press <b>Kill a fast server</b> and turn on <b>Health check</b>.',
+   real: [['Airport check-in', 'Staff point you to the free counter.'], ['Bank token machine', 'Your token sends you to the next free teller.'], ['Ola and Uber', 'The app sends your ride to a nearby driver, spreading the work.']],
+   cost: 'The manager is one more part that can fail, so big systems run two of them.',
+   words: [['Load balancer', 'Spreads requests across servers.'], ['Round robin', 'Taking turns: 1, 2, 3, 1, 2, 3.'], ['Least connections', 'Pick the server with the shortest line.'], ['Health check', 'Regularly asking servers, "Are you alive?"']],
+   deep: 'Load balancers work at two levels. Layer 4 looks only at addresses, so it is very fast. Layer 7 reads the request, so it can send /videos to one group and /payments to another.',
+   quiz: [['With one slow server, "take turns" causes:', ['Its line grows long', 'Everyone gets faster', 'Data is deleted', 'Nothing at all'], 0, 'It gets the same share but finishes slower.'], ['A health check is for:', ['Measuring your heart rate', 'Stopping traffic to dead servers', 'Cleaning code', 'Buying servers'], 1, 'Dead servers are removed from the list.']] },
+ { id: 'stateless', t: 'Stateless servers', sub: 'Any stall can serve anyone', p: 'At stall 1 you give credit to regulars and remember them. Today the manager sends a regular to stall 2. Stall 2 says: "Who are you? Pay cash." The customer leaves angry.',
+   i: 'A stateless server keeps no memory of you. Your details sit in a shared place, so any server can help you.', sim: 'state', try: 'Watch the red dots: people landing at a stall that does not know them. Turn on the <b>shared book</b>.',
+   real: [['Bank branches', 'Any branch can serve you, because your account sits in a central system.'], ['Aadhaar', 'Your details are held centrally. Any counter can check them.'], ['Login token', 'After login your app carries a signed pass, like a ration card, and shows it with every request.']],
+   cost: 'Each request now needs a quick trip to the shared book. That book must be fast and must not fail.',
+   words: [['State', 'Information remembered between requests, such as your cart.'], ['Stateless', 'A server that remembers nothing between requests.'], ['Session', 'Your logged-in visit.'], ['Token', 'A signed pass proving who you are.']],
+   deep: 'A shortcut is sticky sessions: the balancer always sends you to the same server. It is easy, but when that server dies, your session dies too. Teams usually store sessions in a fast shared store such as Redis.',
+   quiz: [['Why do stateless servers help scaling?', ['Any server can take any request', 'They need no electricity', 'They cost nothing', 'They use no network'], 0, 'You can add or remove servers freely.'], ['Which is "state"?', ['Items in your cart', 'The colour of the logo', 'The server\'s brand', 'The country code'], 0, 'It changes per user and must be remembered.']] },
+ { id: 'autoscale', t: 'Autoscaling', sub: 'Open stalls only at rush hour', p: 'Rush hour needs five stalls. At 3 pm you need one. Paying five workers all day wastes money, but one stall at 9 am means lost customers.',
+   i: 'Autoscaling adds machines when traffic rises and removes them when it falls, with no human needed.', sim: 'auto', try: 'Watch stalls open and close as the crowd rises and falls. Turn <b>Autoscaling</b> off to see the difference.',
+   real: [['Extra trains', 'Railways add special trains for Chhath and Diwali.'], ['Swiggy at dinner', 'More delivery partners go online around dinner.'], ['IPL streaming', 'Servers are added ahead of big matches.']],
+   cost: 'New machines take time to start. If a crowd arrives in seconds, autoscaling can be too late. Known events need servers ready in advance.',
+   words: [['Autoscaling', 'Machines added and removed automatically.'], ['Cloud', 'Renting computers by the minute, for example AWS.'], ['Threshold', 'The level that triggers a change, such as 70% busy.']],
+   deep: 'Reactive scaling follows live load. Scheduled scaling follows the calendar, like adding servers before the IPL toss. Keep a cooldown period, or machines will flap on and off.',
+   quiz: [['When can autoscaling fail you?', ['When a crowd arrives faster than machines can start', 'When traffic is flat', 'At night', 'When servers are stateless'], 0, 'Start-up takes time, so sudden spikes get ahead of it.'], ['What does it mainly save?', ['Paying for idle machines', 'Disk space', 'Domain names', 'Passwords'], 0, 'You pay only for what you need.']] },
+]},
+{ id: 'speed', name: 'Express Lane', size: '20 shops, 1 lakh customers a day', blurb: 'People hate waiting. A delay of a few seconds loses them. Here is how to answer faster without doing more work.', lessons: [
+ { id: 'cache', t: 'Caching', sub: 'Keep a flask of ready chai', p: 'Most customers order the same plain chai, and each cup takes 3 minutes. So you brew a big flask in advance and pour it in 5 seconds.',
+   i: 'A cache keeps popular answers ready in fast memory, so you do not repeat slow work.', sim: 'cache', try: 'Turn the <b>Cache off</b> and raise traffic to 8. Turn it back on and move the percentage. Watch the database calm down.',
+   real: [['Top of your desk', 'You keep the files you use often close to you.'], ['YouTube', 'Popular videos are kept ready near viewers.'], ['Browser', 'Logos are saved on your phone, so pages open faster the second time.']],
+   cost: 'A cache can hold old information, and it uses costly memory, so you can keep only the popular things.',
+   words: [['Cache', 'Fast storage for popular answers.'], ['Cache hit', 'Found in the cache. Fast.'], ['Cache miss', 'Not found. Go to the slow place.'], ['Redis', 'A popular cache tool.']],
+   deep: 'When the cache is full, something must go. LRU (least recently used) throws out what nobody has touched for longest. The most common pattern is cache-aside: check the cache, on a miss read the database, then save the answer in the cache.',
+   quiz: [['A cache hit means:', ['The answer was already ready', 'The server crashed', 'A user was blocked', 'The disk is full'], 0, 'No slow work was needed.'], ['What should you cache?', ['Things many people read often', 'Your bank balance during a payment', 'One-time passwords', 'Everything forever'], 0, 'Popular, read-often data gets the biggest benefit.']] },
+ { id: 'stale', t: 'Stale data', sub: 'When the price card is wrong', p: 'Milk prices rise, so you raise chai from ₹10 to ₹15. But the printed price card at the counter still says ₹10. Customers argue.',
+   i: 'A cache copy can go out of date. You need a rule for when to throw it out.', sim: 'stale', try: 'Press <b>Raise the price</b> and count wrong answers. Reduce the expiry time. Then turn on <b>Fix the card on every change</b>.',
+   real: [['Flight fares', 'The fare changes when you press Pay because the listing was cached.'], ['Amazon stock', '"In stock" can turn out wrong at checkout.'], ['Printed menu', 'Old menu, new prices.']],
+   cost: 'Short expiry means fresher data but more database work. Long expiry means less work but older data. You pick based on how much a wrong answer hurts.',
+   words: [['Stale data', 'A copy that is out of date.'], ['TTL', 'Time to live. How long a copy may be used.'], ['Invalidation', 'Deleting a copy once it is wrong.']],
+   deep: 'Phil Karlton\'s old joke says the two hard things in computer science are naming things and cache invalidation. Another trap is the cache stampede: a popular item expires and thousands of requests hit the database at once.',
+   quiz: [['A shorter TTL means:', ['Fresher data, more database work', 'Older data, less work', 'No change', 'No cache needed'], 0, 'Copies expire sooner, so you fetch more often.'], ['Which needs the freshest data?', ['Your bank balance', 'A profile photo', 'A company logo', 'An old news article'], 0, 'Wrong money figures do real harm.']] },
+ { id: 'cdn', t: 'CDN', sub: 'A copy near every customer', p: 'Your famous masala mix is made only in Mumbai. Customers in Guwahati wait 5 days. So you keep stock in a small warehouse in each city.',
+   i: 'A CDN keeps copies of photos and videos in many cities, so each user downloads from somewhere nearby.', sim: 'cdn', try: 'See how far the dots must travel to Mumbai. Turn on the <b>CDN</b>.',
+   real: [['Local warehouses', 'Amazon delivers next day because stock sits nearby.'], ['Netflix', 'Places its own boxes inside internet providers.'], ['Hotstar', 'Live match video comes from servers near you.']],
+   cost: 'You pay for the service, and changing a file means waiting for all cities to get the new copy.',
+   words: [['CDN', 'Content Delivery Network. Servers placed around the world.'], ['Edge server', 'A CDN server near users.'], ['Origin', 'The main server with the original file.'], ['Static content', 'Files that are the same for everyone: photos, videos.']],
+   deep: 'Light in fibre takes about 30 milliseconds to cross India and come back, and web pages need many trips. Distance alone can make a site slow, however powerful your servers are. Physics cannot be upgraded, so you move the data closer.',
+   quiz: [['A CDN is best for:', ['Photos and videos', 'Your OTP', 'Bank transfers', 'Passwords'], 0, 'These are the same for everyone, so they copy well.'], ['Why does distance matter?', ['Data needs time to travel', 'Far servers are smaller', 'Rain', 'It does not matter'], 0, 'Even light takes time, and pages need many trips.']] },
+ { id: 'index', t: 'Database index', sub: 'The page at the back of the book', p: 'Your register has 10 lakh customers. To find "Meena Kumari", you start at page 1 and read every line. Each search takes ages.',
+   i: 'An index is like the index at the back of a book. It tells the database exactly where to look.', sim: 'index', try: 'Raise searches to 5 and see the queue. Press <b>Add an index</b>.',
+   real: [['Dictionary', 'Sorted words let you jump to a page.'], ['Phone contacts', 'Typing a letter finds a name instantly.'], ['Train PNR', 'The number finds your ticket at once among millions.']],
+   cost: 'Each index takes space and must be updated on every write. Too many indexes slow down writing.',
+   words: [['Index', 'A sorted shortcut to find rows quickly.'], ['Full table scan', 'Reading every row. Slow.'], ['B-tree', 'The common tree shape used for indexes.']],
+   deep: 'Sorted data needs about 20 steps to find one item among a million, because each step cuts the options in half. That is why adding the right index can make a query 1,000 times faster with one line of work.',
+   quiz: [['What does an index cost you?', ['Slower writes and more space', 'Nothing', 'Slower reads', 'Loss of data'], 0, 'Every insert must also update the index.'], ['Which is like an index?', ['A dictionary\'s sorted order', 'A blank page', 'A pen', 'A long queue'], 0, 'Sorted order lets you jump close to the answer.']] },
+]},
+{ id: 'data', name: 'Record Room', size: '100 outlets, 10 lakh customers', blurb: 'One notebook can no longer hold everything. Data must be split, copied and kept correct.', lessons: [
+ { id: 'sqlnosql', t: 'SQL and NoSQL', sub: 'Neat registers or flexible folders', p: 'Your accounts fit neat columns: name, date, amount. But customer feedback is messy. Some have photos, some have voice notes. One kind of notebook does not suit both.',
+   i: 'SQL databases store neat tables with strict rules. NoSQL databases store flexible records and spread across many machines more easily.', vis: 'sql', real: [['Bank ledger (SQL)', 'Strict columns. Every rupee must match.'], ['Instagram profile (NoSQL)', 'Each person fills different things.'], ['WhatsApp messages (NoSQL)', 'Enormous volume, simple lookups.']],
+   cost: 'SQL gives strong rules and joins, but is harder to spread across machines. NoSQL spreads easily, but you give up some checks and flexible questions.',
+   words: [['SQL', 'Language for asking questions of tables. Used by MySQL and PostgreSQL.'], ['NoSQL', 'Databases that are not tables, such as MongoDB and Cassandra.'], ['Schema', 'The fixed plan of columns.'], ['Join', 'Combining two tables to answer a question.']],
+   deep: 'NoSQL has four families: key-value (Redis), document (MongoDB), wide-column (Cassandra) and graph (Neo4j). Today the line is blurry: PostgreSQL stores JSON, and many NoSQL systems offer transactions. Default to SQL unless you have a clear reason.',
+   quiz: [['Best for money and bank records?', ['SQL', 'A text file', 'A sticky note', 'A CDN'], 0, 'Strict rules protect money.'], ['Why pick NoSQL?', ['Huge scale and flexible data', 'It is always better', 'It needs no computers', 'For strict accounting'], 0, 'It trades strict rules for easy spreading.']] },
+ { id: 'replication', t: 'Replication', sub: 'Keep copies of the notebook', p: 'All staff keep asking to read the one notebook, so a line forms. If it falls in a puddle, your business is gone. So you make copies.',
+   i: 'Replication keeps copies of the database on several machines. One copy takes the changes, and the others help with reading and act as a backup.', sim: 'replica', try: 'Push traffic to 12. Add read copies. Then press <b>Main copy fails</b>.',
+   real: [['Google Drive', 'Your files live in many data centres.'], ['Photocopied notes', 'One student writes, everyone reads a copy.'], ['UPI banks', 'Records are copied to another city in case of a disaster.']],
+   cost: 'Copies take time to update. Right after you post, your friend may not see it for a moment. That gap is called replication lag.',
+   words: [['Replica', 'A copy of a database.'], ['Primary', 'The main copy, which accepts changes.'], ['Replication lag', 'Delay before copies catch up.'], ['Failover', 'Making a copy the new main one when the old one dies.']],
+   deep: 'Synchronous replication waits for copies before saying "done". This is safe but slower. Asynchronous replication says "done" first. It is fast, but you can lose the latest writes in a crash. Many systems wait for one copy and let the rest catch up.',
+   quiz: [['Replicas help most with:', ['Lots of reading', 'Lots of writing', 'Faster typing', 'Smaller files'], 0, 'Reads can go to any copy, but writes must reach all of them.'], ['Replication lag means:', ['Copies are briefly behind', 'The screen is broken', 'A server is on fire', 'Your password expired'], 0, 'Updates take time to reach copies.']] },
+ { id: 'sharding', t: 'Sharding', sub: 'Split the register A to M, N to Z', p: 'The notebook is so thick that it will not fit on one shelf. Copies do not help, because each copy is just as thick. So you split it: A to M in one book, N to Z in another.',
+   i: 'Sharding cuts data into pieces and stores each piece on a different database. Each piece is a shard.', sim: 'shard', try: 'Set traffic to 18 and add shards. Then turn on <b>Celebrity on Shard 1</b>.',
+   real: [['Exam halls', 'Roll numbers 1 to 100 in Hall A, the rest in Hall B.'], ['Train coaches', 'Your seat depends on your coach.'], ['WhatsApp', 'Users are split across many database groups.']],
+   cost: 'Questions across shards become slow, moving data later is painful, and one busy shard can hurt everyone on it.',
+   words: [['Shard', 'One piece of split data.'], ['Shard key', 'The field that decides where data goes, such as user ID.'], ['Hot shard', 'A shard getting far too much traffic.'], ['Consistent hashing', 'A method to add shards while moving little data.']],
+   deep: 'Do not shard early. It adds lasting complexity. First try indexes, caches, read copies and a bigger machine. If you must, use consistent hashing: machines sit on a ring, and adding one only moves a small slice of keys.',
+   quiz: [['Replication copies data. Sharding:', ['Splits data', 'Deletes data', 'Colours data', 'Compresses photos'], 0, 'Each shard holds different data.'], ['A hot shard is:', ['One piece getting too much traffic', 'A broken cooler', 'A fast disk', 'A new shard'], 0, 'Often caused by a poor shard key or a celebrity.']] },
+ { id: 'cap', t: 'The CAP choice', sub: 'When two branches cannot talk', p: 'Your branches in Patna and Pune share stock by phone. The line goes dead. One samosa is left. Both branches get a customer. Do you sell? Or refuse until the line returns?',
+   i: 'When parts of a system lose contact, you must choose: stay open and risk wrong answers, or refuse and stay correct. You cannot have both.', sim: 'cap', try: 'Press <b>Cut the phone line</b>. Switch between <b>Stay open</b> and <b>Refuse orders</b>.',
+   real: [['ATM withdrawal', 'Correctness comes first, so an offline ATM refuses.'], ['Instagram likes', 'The count can be off for a moment, and nobody is hurt.'], ['IRCTC seat', 'Two people must never get one seat. It prefers correctness.']],
+   cost: 'Choose by asking: which hurts more, a wrong answer or no answer?',
+   words: [['Consistency', 'Everyone sees the same correct data.'], ['Availability', 'You always get some answer.'], ['Partition', 'Parts of the system cannot reach each other.'], ['Eventual consistency', 'Copies will agree soon, not instantly.']],
+   deep: 'CAP stands for Consistency, Availability, Partition tolerance. Networks do fail, so P is not optional: the real choice during a break is C or A. PACELC adds the everyday trade-off: even without a break, you trade delay against consistency.',
+   quiz: [['Bank transfers should choose:', ['Correctness', 'Always answer, even if wrong', 'Random', 'Neither'], 0, 'A wrong balance is worse than a short wait.'], ['A social media like count should choose:', ['Staying available', 'Refusing users', 'Stopping the app', 'Deleting likes'], 0, 'A slightly wrong count hurts nobody.']] },
+ { id: 'transactions', t: 'Transactions', sub: 'All or nothing', p: 'You send ₹500 to a friend. The bank takes it from you, then the power fails before adding it to your friend. The money has vanished.',
+   i: 'A transaction groups steps into one unit: either every step happens, or none of them do.', vis: 'txn', real: [['UPI payment', 'Money leaves and arrives as one unit, or it is reversed.'], ['Ticket booking', 'Seat and payment succeed together.'], ['Shop exchange', 'You hand over cash only as you get the item.']],
+   cost: 'Locks make others wait. Across many machines, transactions become much slower and harder.',
+   words: [['Transaction', 'Steps treated as one action.'], ['Commit', 'Save everything for good.'], ['Rollback', 'Undo everything.'], ['ACID', 'The four promises of a reliable transaction.']],
+   deep: 'ACID: Atomic (all or nothing), Consistent (rules stay true), Isolated (others do not see half-done work), Durable (saved work survives crashes). Across services, teams use the Saga pattern: a chain of small steps, each with an undo step.',
+   quiz: [['If step 2 fails in a transaction:', ['Step 1 is undone', 'Step 1 stays', 'The bank closes', 'Nothing can be done'], 0, 'All or nothing.'], ['"Commit" means:', ['Save for good', 'Delete', 'Copy', 'Log out'], 0, 'Every change becomes permanent.']] },
+]},
+{ id: 'kitchen', name: 'Busy Kitchen', size: '500 outlets, online orders', blurb: 'Now you run an online business. Too many jobs are tangled together. Time to split the work.', lessons: [
+ { id: 'queue', t: 'Message queues', sub: 'Take a token and sit down', p: 'At a busy restaurant, what if each customer stood at the counter until the food was ready? No one else could order. So the counter gives a token, and you sit down.',
+   i: 'A queue lets one part leave a job and move on. Another part picks up jobs at its own speed. Nobody stands waiting.', sim: 'queue', try: 'Set customers to 5 with the queue off. Then turn on the <b>queue</b>. Replies become quick, and the kitchen works through the pile.',
+   real: [['Food court tokens', 'Order, get a token, wait on a chair.'], ['Sending email', 'You press Send and it goes later.'], ['YouTube upload', 'You get "processing" while the video is prepared in the background.']],
+   cost: 'The work finishes later, so the user must be fine with "we will let you know". The pile also needs watching.',
+   words: [['Queue', 'A waiting line for jobs.'], ['Producer', 'The one adding jobs.'], ['Consumer', 'The one doing jobs.'], ['Asynchronous', 'Do not wait for the result.'], ['Kafka, RabbitMQ', 'Popular queue tools.']],
+   deep: 'Queues absorb spikes: 10,000 orders in a minute can be worked through in ten minutes. Most deliver "at least once", so a job can run twice. Jobs that keep failing go to a dead-letter queue, like a shelf of problem tickets.',
+   quiz: [['Main benefit of a queue?', ['Slow work does not block the customer', 'Food tastes better', 'It removes all servers', 'It deletes old orders'], 0, 'Reply first, work later.'], ['Which fits a queue?', ['Sending a receipt email', 'Checking a password now', 'Showing your balance', 'A live video call'], 0, 'A receipt can be a few seconds late.']] },
+ { id: 'pubsub', t: 'Events and pub/sub', sub: 'Post a notice for everyone', p: 'After each order you personally call the kitchen, then rewards, then SMS. Adding a new team means changing your routine. If SMS does not pick up, you are stuck.',
+   i: 'With pub/sub you announce "an order happened" on a board. Any team that cares reads it. You do not need to know who they are.', sim: 'pubsub', try: 'Compare waits with the board off and on. Press <b>SMS team goes on break</b> in both modes.',
+   real: [['School notice board', 'One notice, many readers.'], ['YouTube subscribe', 'One upload, and all subscribers hear.'], ['Swiggy order', 'One event updates the restaurant, the rider, the app and offers.']],
+   cost: 'It gets harder to trace what happened, since no single place shows the full story.',
+   words: [['Event', 'A note that something happened.'], ['Publisher', 'Who announces.'], ['Subscriber', 'Who listens.'], ['Loose coupling', 'Parts know little about each other.']],
+   deep: 'A queue gives each job to one worker. Pub/sub gives each event to every interested team. Kafka can do both, and keeps events for days, so a new team can replay old history.',
+   quiz: [['With pub/sub, adding a new team:', ['Needs no change to the sender', 'Rewrites the app', 'Stops all orders', 'Is impossible'], 0, 'The new team just starts reading.'], ['A YouTube subscription is like:', ['Pub/sub', 'A cache', 'An index', 'A shard'], 0, 'One publisher, many listeners.']] },
+ { id: 'microservices', t: 'Microservices', sub: 'One big app, or many small ones', p: 'One person takes orders, cooks, handles cash and delivers. When that person falls ill, everything stops. A bigger business has separate teams.',
+   i: 'A monolith is one big app that does everything. Microservices split it into small apps that talk over the network. Each can change or fail alone.', sim: 'micro', try: 'Press <b>Bug in payment code</b>. Then switch to <b>small services</b> and try it again.',
+   real: [['Family shop vs mall', 'One owner does all, compared with many separate shops.'], ['Amazon', 'Moved to small services so that teams could ship alone.'], ['Your phone', 'Separate apps, so one crash does not kill the phone.']],
+   cost: 'Calls over a network are slower and can fail. You now run dozens of things. Small teams should start with one app.',
+   words: [['Monolith', 'One big app.'], ['Microservice', 'A small app with one job.'], ['Deploy', 'Putting new code live.'], ['Container', 'A packed box holding an app and all it needs. Docker makes these.'], ['Kubernetes', 'Software that manages many containers.']],
+   deep: 'Conway\'s Law says systems end up shaped like the teams that build them. Microservices often solve a people problem: 200 engineers cannot safely edit one app. A well-organised monolith is the right start for most new products.',
+   quiz: [['Biggest gain of microservices?', ['Teams work and fail separately', 'They are simpler', 'No network needed', 'No servers'], 0, 'Independence is the real prize.'], ['A startup with 3 people should usually use:', ['A monolith', '50 microservices', 'Kubernetes everywhere', 'No code'], 0, 'Keep it simple until you have a reason.']] },
+ { id: 'gateway', t: 'Gatekeeper and rate limits', sub: 'One door, with a guard', p: 'Your shop has many departments and one bad customer keeps placing fake orders, thousands an hour. Honest customers cannot get through.',
+   i: 'An API gateway is the single front door. It checks who you are, sends you to the right team, and limits how often you can ask.', sim: 'gate', try: 'Drag spam up to 20. Watch real customers suffer. Then turn on the <b>limit</b>.',
+   real: [['Mall security', 'One door, bag checks, then you can go anywhere.'], ['OTP limits', '"Too many tries, wait 30 minutes."'], ['Tatkal limits', 'IRCTC restricts bookings and bots at opening time.']],
+   cost: 'A strict limit can block real users, and the gateway must be very reliable since everything passes through it.',
+   words: [['API gateway', 'The one front door for all services.'], ['Rate limit', 'A cap on requests per user.'], ['Bot', 'A program pretending to be people.'], ['DDoS', 'A flood of fake traffic meant to take a site down.'], ['HTTP 429', 'The code for "too many requests".']],
+   deep: 'The token bucket method gives each user a bucket that fills slowly. Each request takes a token. Empty bucket, no entry. This allows short bursts while capping the average.',
+   quiz: [['A rate limit protects you from:', ['Floods of requests', 'Bad design', 'Slow disks', 'Rain'], 0, 'One user cannot take all the capacity.'], ['"Too many OTP attempts" is:', ['Rate limiting', 'Caching', 'Sharding', 'Replication'], 0, 'A cap on tries per user.']] },
+]},
+{ id: 'storm', name: 'Storm Section', size: 'National brand, nothing may stop', blurb: 'At scale, something is always broken. Good systems expect failure and keep running.', lessons: [
+ { id: 'spof', t: 'Single point of failure', sub: 'One key, one lock, one problem', p: 'All 500 outlets order from a single supplier. A truck strike stops that supplier, and all 500 outlets run out of tea on the same day.',
+   i: 'A single point of failure is any one part that stops everything when it breaks. The cure is redundancy: keep a spare ready.', sim: 'spof', try: 'Break each part. Then press <b>Add a backup of everything</b> and break them again.',
+   real: [['Plane engines', 'Two engines, so one can fail safely.'], ['Inverter at home', 'Backup power during cuts.'], ['Spare tyre', 'A small cost, until the day it saves you.']],
+   cost: 'Spares cost money while sitting idle, and switching over must be tested. A backup that was never tried is only a hope.',
+   words: [['SPOF', 'Single point of failure.'], ['Redundancy', 'Having spare parts ready.'], ['Uptime', 'Share of time the system works.'], ['99.9%', 'Called three nines: about 8.8 hours down a year.'], ['99.99%', 'Four nines: about 53 minutes down a year.']],
+   deep: 'Copies in one building can all fail together. So teams use availability zones (separate buildings in one city) and regions (separate cities). Each extra nine costs far more than the last.',
+   quiz: [['Which removes a single point of failure?', ['A ready backup', 'A bigger logo', 'Faster typing', 'A new font'], 0, 'If one fails, the other takes over.'], ['99.9% uptime still means:', ['About 8.8 hours down a year', 'Never down', 'Down every day', 'Down for a month'], 0, '0.1% of 8,760 hours is 8.76 hours.']] },
+ { id: 'retries', t: 'Retries and double charges', sub: 'Press Pay only once', p: 'You pay ₹500 and the screen freezes. Did it work? You press Pay again. Now ₹1,000 has gone from your account.',
+   i: 'Networks lose messages, so apps retry. To keep retries safe, each action carries a unique ID, and the server ignores repeats. This is called idempotency.', sim: 'retry', try: 'Turn on <b>Retry</b> and watch the double charges. Then turn on the <b>unique payment ID</b>.',
+   real: [['Lift button', 'Press it ten times. One lift comes. That is idempotent.'], ['Amazon order', '"You already placed this order" warning.'], ['UPI', 'Each payment has a reference number, so repeats can be spotted.']],
+   cost: 'The server must remember IDs, and retries add load. Thousands retrying at once can knock over a system that is just recovering.',
+   words: [['Retry', 'Trying again after a failure.'], ['Timeout', 'How long to wait before giving up.'], ['Idempotent', 'Doing it twice has the same effect as once.'], ['Exponential backoff', 'Wait 1 sec, then 2, then 4, and so on.']],
+   deep: 'Add backoff with random jitter so that clients do not all retry at the same moment. Remember: a timeout means "I do not know", not "it failed". The payment may have succeeded. That is why IDs are essential.',
+   quiz: [['No reply from the bank means:', ['You do not know what happened', 'It definitely failed', 'It definitely worked', 'Your phone is broken'], 0, 'The reply may be what got lost.'], ['Which is idempotent?', ['Setting volume to 10', 'Adding ₹100', 'Sending a message', 'Ordering one more pizza'], 0, 'Setting to 10 twice still gives 10.']] },
+ { id: 'breaker', t: 'Circuit breaker', sub: 'Trip the switch before the house burns', p: 'Your SMS partner stops answering. Each order now waits 30 seconds for it. Soon every worker is stuck on hold, and even simple orders freeze.',
+   i: 'A circuit breaker notices that a partner keeps failing and stops calling it for a while. You fail fast and protect yourself.', sim: 'breaker', try: 'Press <b>Partner stops answering</b> and watch the app jam. Turn on the <b>Circuit breaker</b>.',
+   real: [['Home fuse', 'It cuts power before wires overheat.'], ['Stock market', 'Trading halts when prices fall too fast.'], ['Hotstar', 'Turns off non-essential features during huge load.']],
+   cost: 'While tripped, the feature is off. You must decide what to show: a saved answer, or a plain "try later".',
+   words: [['Circuit breaker', 'Stops calls to a failing part.'], ['Cascading failure', 'One failure spreading to others.'], ['Fallback', 'A simpler answer when the real one fails.'], ['Graceful degradation', 'Losing small features to save the main one.']],
+   deep: 'Breakers have three states. Closed: normal. Open: calls blocked. Half-open: try a few calls to see if the partner recovered. Also use timeouts and bulkheads, which keep separate worker pools so one problem cannot use up all the workers.',
+   quiz: [['A circuit breaker protects you from:', ['Failures spreading', 'Bad fonts', 'New users', 'Long passwords'], 0, 'It stops one problem from pulling down all the rest.'], ['In an open state, calls are:', ['Failed fast with no waiting', 'Sent twice', 'Stored forever', 'Sent slowly'], 0, 'No waiting means your workers stay free.']] },
+ { id: 'monitor', t: 'Monitoring', sub: 'Know before customers complain', p: 'At 11 am sales drop by half, and you only learn at closing time. A broken stove sat unnoticed all day.',
+   i: 'Monitoring means watching live numbers, keeping records, and raising an alarm when something looks wrong.', vis: 'monitor', real: [['Car dashboard', 'Warning lights before the engine dies.'], ['Hospital monitor', 'Beeps as soon as the heart rate changes.'], ['Delivery tracking', 'Shows each step of a package\'s path.']],
+   cost: 'Too many alarms and people start ignoring them. Alert only on things that need action.',
+   words: [['Metrics', 'Numbers over time.'], ['Logs', 'A diary of events.'], ['Traces', 'The full path of one request.'], ['SLO', 'The target you promise, such as 99.9% in under 1 second.'], ['Alert', 'An automatic call for help.']],
+   deep: 'Google\'s four golden signals: latency, traffic, errors and saturation (how full you are). Watch the slow tail too. In the chart above, the average looks fine, but p99 shows some users having a bad time.',
+   quiz: [['To follow one request across services, use:', ['Traces', 'Fonts', 'Backups', 'Passwords'], 0, 'A trace shows each stop along the path.'], ['Why watch p99 and not only the average?', ['Averages hide the slowest users', 'p99 looks better', 'It is shorter', 'It is free'], 0, 'One in a hundred, with millions of users, is a lot of unhappy people.']] },
+]},
+{ id: 'planner', name: 'Planner\'s Cabin', size: 'Think like a system designer', blurb: 'You know the tools. Now learn how designers think: rough numbers, a repeatable method, and honest trade-offs.', lessons: [
+ { id: 'estimate', t: 'Rough maths', sub: 'How big is this thing?', p: 'A friend says: "Let\'s build the next big food app." How many servers? How much storage? You cannot plan until you have a rough size.',
+   i: 'Estimation means quick rough maths to learn the size of a problem. Being close is enough. Exact numbers do not matter.', vis: 'calc', real: [['Wedding catering', 'Guests × plates × a bit extra.'], ['Road trip', 'Distance ÷ mileage = fuel budget.'], ['Exam planning', 'Pages ÷ days = pages per day.']],
+   cost: 'Rough numbers can be off by double. That is fine for a first plan. Then test with real load.',
+   words: [['DAU', 'Daily active users.'], ['QPS', 'Queries per second. Same idea as RPS.'], ['Peak', 'The busiest moment. Often 2 to 10 times the average.'], ['GB, TB', '1,000 GB = 1 TB.']],
+   deep: 'Handy facts: a day has about 1 lakh seconds (86,400). One server handles roughly 1,000 simple requests per second. A text message is about 1 KB, a photo about 1 MB, a minute of video about 50 MB. Round everything.',
+   quiz: [['A day has about how many seconds?', ['1 lakh', '1 crore', '1,000', '100'], 0, '86,400, rounded to 1 lakh.'], ['1 crore requests a day is about:', ['100 per second', '10 per second', '1 lakh per second', '1 per second'], 0, '1,00,00,000 ÷ 1,00,000 = 100 per second.']] },
+ { id: 'method', t: 'The five-step method', sub: 'From blank page to design', p: 'Someone says: "Design WhatsApp." The blank page is scary. Beginners draw boxes at random. Experienced designers follow the same five steps each time.',
+   i: 'Ask, size, sketch, zoom in, then break it. Every design problem fits these five steps.', vis: 'method', real: [['Building a house', 'Family needs, budget, plan, details, then earthquake safety.'], ['Planning a wedding', 'Guests, budget, venue, menu, then the rain backup.'], ['A doctor', 'Questions, tests, diagnosis, treatment, then side effects.']],
+   cost: 'Spend your time on the risky parts. No one can design everything in detail.',
+   words: [['Requirements', 'What it must do and how well.'], ['Bottleneck', 'The narrow part that limits everything.'], ['High-level design', 'The overview with main boxes.']],
+   deep: 'In interviews, spend 5 minutes on questions, 5 on numbers, 10 on the sketch, 15 on deep dives and 5 on failures. Say your trade-offs out loud. Interviewers are watching how you think.',
+   quiz: [['What do you do first?', ['Ask what it must do', 'Pick a database', 'Write code', 'Add Kafka'], 0, 'Tools come after you understand the need.'], ['The bottleneck is:', ['The narrowest, slowest part', 'The top part', 'The newest server', 'The cheapest part'], 0, 'A system is only as fast as its narrowest point.']] },
+ { id: 'tradeoffs', t: 'Nothing is free', sub: 'Every choice has a price', p: 'Customers want chai that is cheap, delicious and instant. Pick two. Systems have the same rule, and there are no perfect designs.',
+   i: 'Good design means picking the right trade-off for this problem. Name what you gain and what you give up.', vis: 'trade', real: [['Train or flight', 'Money against time.'], ['Home or rented', 'Control against flexibility.'], ['Bulk buying', 'Lower price against storage space.']],
+   cost: 'Over-building is also a failure. A startup with 100 users does not need Kafka. Build for the next 10× of growth, then redesign.',
+   words: [['Trade-off', 'Gaining one thing by giving up another.'], ['Over-engineering', 'Building for problems you do not have.'], ['Technical debt', 'Shortcuts that cost more later.']],
+   deep: 'Ask two questions for each choice. What does this cost? What breaks if we are wrong? Decisions that are easy to undo can be made fast. Decisions that are hard to undo, such as your shard key, deserve more thought.',
+   quiz: [['A good designer says:', ['This fits here because of these trade-offs', 'This is always the best', 'Use Kafka everywhere', 'Copy Netflix'], 0, 'Context decides what is right.'], ['Over-engineering means:', ['Building for problems you do not have', 'Writing tests', 'Adding a backup', 'Reading docs'], 0, 'Complexity costs money every day.']] },
+]},
+];
+const LESSONS = STATIONS.flatMap(s => s.lessons.map(l => Object.assign(l, { st: s })));
+
+const WORDS = LESSONS.flatMap(l => (l.words || []).map(([w, d]) => ({ w, d, l: l.id, t: l.t })));
+
+const FIXES = [
+ ['Site gets slow during sales or festivals', ['horizontal', 'autoscale', 'cache'], 'Add more servers and serve popular answers from cache.'],
+ ['Pages are slow for everyone, even on quiet days', ['index', 'cache', 'latency'], 'Find the slow database query. Add an index, then a cache.'],
+ ['Users far away complain about slow images', ['cdn'], 'Put copies of files in a CDN near them.'],
+ ['Site dies completely when one server fails', ['spof', 'loadbalancer'], 'Find the single point of failure and add a spare.'],
+ ['Users get logged out at random', ['stateless'], 'Move sessions to a shared store so any server can help.'],
+ ['Customers see old prices or old data', ['stale'], 'Shorten the cache time or clear the copy on each change.'],
+ ['Database is overloaded with reads', ['replication', 'cache'], 'Add read copies and cache popular reads.'],
+ ['Database is too large for one machine', ['sharding'], 'Split data with a good shard key, after trying simpler fixes.'],
+ ['People get charged twice', ['retries', 'transactions'], 'Attach a unique ID to each payment and ignore repeats.'],
+ ['Slow jobs make customers wait', ['queue'], 'Reply at once and do the work in the background.'],
+ ['One failing partner freezes the whole app', ['breaker'], 'Use timeouts and a circuit breaker.'],
+ ['Bots flood the login or OTP page', ['gateway'], 'Rate limit per user and per address at the front door.'],
+ ['One small bug takes down everything', ['microservices', 'breaker'], 'Separate parts so that failures stay contained.'],
+ ['We find out about outages from angry customers', ['monitor'], 'Add dashboards and alerts on latency and errors.'],
+];
+/* Real-app walkthroughs. Figures are rounded public numbers; designs are the usual textbook shape. */
+const CASES = [
+{ id: 'shortlink', name: 'Short links', tag: 'Starter', hook: 'Turn a long web address into a tiny one, like bit.ly. It looks small, and it teaches almost every basic idea.',
+  nums: [['10 crore', 'links made per month, as a practice target'], ['100 to 1', 'more clicks than new links'], ['7 letters', 'gives 3.5 lakh crore possible codes']],
+  nodes: { c: { kind: 'client', label: 'User', x: 0, y: .5 }, l: { kind: 'lb', label: 'Balancer', x: .25, y: .5 }, a: { label: 'App servers', x: .5, y: .5 }, k: { kind: 'cache', label: 'Cache', x: .75, y: .05 }, g: { label: 'Code maker', x: .75, y: .95 }, d: { kind: 'db', label: 'Database', x: 1, y: .5 } },
+  edges: [['c', 'l'], ['l', 'a'], ['a', 'k'], ['a', 'g'], ['a', 'd'], ['k', 'd'], ['g', 'd']],
+  steps: [['You paste a long link. The balancer picks a free app server.', ['c', 'l', 'a']], ['The code maker creates a unique short code such as x7Kp2q.', ['a', 'g']], ['Code and long link are saved as a pair in the database.', ['g', 'd']], ['Someone clicks the short link. The app checks the cache first, since a few links get most clicks.', ['c', 'l', 'a', 'k']], ['On a cache miss, it reads the database, then saves the answer in the cache.', ['a', 'd', 'k']], ['The browser is told to jump to the long address.', ['a', 'l', 'c']]],
+  fixes: [['Two links get the same code', 'Use a counter or a block of reserved numbers, and turn that number into letters.', 'database'], ['Reads hugely outnumber writes', 'Cache popular links and add read copies.', 'cache'], ['Bots create millions of links', 'Rate limit per user.', 'gateway']] },
+{ id: 'irctc', name: 'IRCTC Tatkal', tag: 'Spike', hook: 'At 10 am sharp, lakhs of people fight for a few seats. Two people must never get the same seat.',
+  nums: [['25,000+', 'tickets a minute at peak, as reported'], ['10:00 am', 'almost all demand arrives at once'], ['0', 'double bookings allowed']],
+  nodes: { c: { kind: 'client', label: 'Lakhs of users', x: 0, y: .5 }, g: { kind: 'lb', label: 'Gatekeeper', sub: 'stops bots', x: .25, y: .5 }, w: { kind: 'queue', label: 'Waiting room', x: .5, y: .05 }, b: { label: 'Booking', x: .5, y: .95 }, s: { kind: 'db', label: 'Seat database', x: .78, y: .95 }, p: { label: 'Payment', x: 1, y: .4 } },
+  edges: [['c', 'g'], ['g', 'w'], ['w', 'b'], ['g', 'b'], ['b', 's'], ['b', 'p']],
+  steps: [['Everyone arrives at 10:00. The gatekeeper checks logins and blocks bots.', ['c', 'g']], ['A waiting room lets people in at a safe speed, so servers are not crushed.', ['g', 'w', 'b']], ['Booking locks the seat in the database. One row, one winner.', ['b', 's']], ['You get a few minutes to pay. The seat stays held for you.', ['b', 'p']], ['Payment and confirmed seat are saved as one transaction. If payment fails, the seat is released.', ['p', 'b', 's']]],
+  fixes: [['Crowd arrives in one second', 'Autoscaling is too slow. Add servers before 10 am and use a waiting room.', 'autoscale'], ['Two people pick one seat', 'Lock the row, and let the database pick one winner.', 'transactions'], ['Agents use bots', 'Rate limits, captcha and login checks at the gate.', 'gateway'], ['Availability page is overloaded', 'Serve seat counts from a cache that is a few seconds old.', 'stale']] },
+{ id: 'whatsapp', name: 'WhatsApp', tag: 'Real-time', hook: 'Your message reaches a friend in under a second, even if the friend is offline right now.',
+  nums: [['200 crore+', 'users worldwide'], ['10,000 crore+', 'messages a day, as reported'], ['Under 1 sec', 'delivery target']],
+  nodes: { a: { kind: 'client', label: 'You', x: 0, y: .15 }, g: { label: 'Chat server A', x: .3, y: .15 }, r: { kind: 'cache', label: 'Who is online', x: .55, y: .55 }, h: { label: 'Chat server B', x: .72, y: .15 }, b: { kind: 'client', label: 'Friend', x: 1, y: .15 }, q: { kind: 'db', label: 'Message store', x: .3, y: .95 }, n: { label: 'Push alert', x: 1, y: .95 } },
+  edges: [['a', 'g'], ['g', 'r'], ['g', 'h'], ['h', 'b'], ['g', 'q'], ['q', 'n'], ['n', 'b']],
+  steps: [['Your phone keeps one open line to a chat server, like a phone call that never ends.', ['a', 'g']], ['The server saves the message, then you see one tick.', ['g', 'q']], ['It asks: which server is your friend connected to?', ['g', 'r']], ['Friend online: message goes across the two servers, and you see two ticks.', ['g', 'h', 'b']], ['Friend offline: it waits in the store and a push alert goes out.', ['q', 'n', 'b']]],
+  fixes: [['Normal requests are too slow for chat', 'Keep a permanent two-way line open, known as a WebSocket.', 'client'], ['Friend is offline', 'Store the message safely, and deliver later.', 'queue'], ['Messages arrive in the wrong order', 'Give each chat its own sequence numbers.', 'sharding'], ['Group of 1,000 people', 'One message fans out to every member with a queue.', 'pubsub']] },
+{ id: 'hotstar', name: 'Hotstar IPL', tag: 'Live video', hook: 'A crore-plus people watch the same ball at the same second. Then a wicket falls and everyone opens the app.',
+  nums: [['5.9 crore', 'people watching at once, reported peak in 2023'], ['Seconds', 'for a crowd to surge after a wicket'], ['Many Tbps', 'video traffic']],
+  nodes: { s: { kind: 'client', label: 'Stadium camera', x: 0, y: .15 }, e: { label: 'Video cutter', sub: 'small chunks', x: .3, y: .15 }, o: { kind: 'db', label: 'Origin', x: .6, y: .15 }, c: { kind: 'cache', label: 'CDN edges', x: .6, y: .9 }, u: { kind: 'client', label: 'Viewers', x: 1, y: .9 }, a: { label: 'App + login', x: 1, y: .15 } },
+  edges: [['s', 'e'], ['e', 'o'], ['o', 'c'], ['c', 'u'], ['u', 'a']],
+  steps: [['Video from the ground arrives at the encoders.', ['s', 'e']], ['It is cut into chunks of a few seconds, each at several quality levels.', ['e', 'o']], ['CDN servers across India pull chunks from the origin once.', ['o', 'c']], ['Your phone fetches each chunk from a nearby CDN server. Slow network? It picks lower quality.', ['c', 'u']], ['Separately, app and login servers take the crowd surge. Extra features are switched off first.', ['u', 'a']]],
+  fixes: [['Traffic jumps on key moments', 'Add capacity well before the match. Autoscaling alone is too late.', 'autoscale'], ['Origin cannot serve crores', 'CDN carries nearly all video.', 'cdn'], ['Backend overloaded', 'Turn off extras like recommendations, and keep video running.', 'breaker'], ['Everyone reconnects at once', 'Retries with random delay.', 'retries']] },
+{ id: 'upi', name: 'UPI payment', tag: 'Money', hook: 'Scan, pay, done. Money moves between two banks in seconds, and it must never get lost.',
+  nums: [['2,000 crore+', 'payments a month'], ['Seconds', 'for a normal payment'], ['Zero', 'rupees allowed to vanish']],
+  nodes: { c: { kind: 'client', label: 'Your app', x: 0, y: .5 }, p: { label: 'App provider', x: .25, y: .5 }, n: { kind: 'lb', label: 'NPCI switch', x: .5, y: .5 }, a: { kind: 'db', label: 'Your bank', x: .85, y: .05 }, b: { kind: 'db', label: 'Shop\'s bank', x: .85, y: .95 } },
+  edges: [['c', 'p'], ['p', 'n'], ['n', 'a'], ['n', 'b']],
+  steps: [['You enter your PIN. The app creates a unique transaction ID.', ['c', 'p']], ['The request goes to the NPCI switch, the central router between banks.', ['p', 'n']], ['Your bank checks the PIN and balance, then debits you.', ['n', 'a']], ['The shop\'s bank credits the shop.', ['n', 'b']], ['Success returns to both phones. If the credit fails, the debit is reversed.', ['b', 'n', 'p', 'c']], ['Each night, banks compare records to catch anything that went wrong. This is reconciliation.', ['a', 'n', 'b']]],
+  fixes: [['Reply lost, did it work?', 'Check status using the transaction ID. Do not blindly pay again.', 'retries'], ['Money left but did not arrive', 'Each step has an undo, and nightly checks catch the rest.', 'transactions'], ['One bank is down', 'That bank\'s users see errors, but others are unaffected.', 'breaker'], ['Festival spike', 'Many copies of the switch, across data centres.', 'spof']] },
+{ id: 'swiggy', name: 'Swiggy delivery', tag: 'Location', hook: 'Find the best nearby rider, in seconds, while thousands of riders keep moving.',
+  nums: [['Lakhs', 'of orders at peak dinner time'], ['Every few sec', 'each rider sends location'], ['Under 30 min', 'delivery promise']],
+  nodes: { c: { kind: 'client', label: 'Customer', x: 0, y: .15 }, o: { label: 'Order service', x: .33, y: .15 }, b: { kind: 'queue', label: 'Events', x: .66, y: .15 }, r: { label: 'Restaurant', x: 1, y: .15 }, m: { label: 'Matcher', x: .66, y: .95 }, g: { kind: 'cache', label: 'Live locations', x: .33, y: .95 }, d: { kind: 'client', label: 'Riders', x: 0, y: .95 } },
+  edges: [['c', 'o'], ['o', 'b'], ['b', 'r'], ['b', 'm'], ['m', 'g'], ['g', 'd'], ['m', 'd']],
+  steps: [['You place an order and pay.', ['c', 'o']], ['An "order placed" event goes on the board.', ['o', 'b']], ['The restaurant gets it and confirms a cooking time.', ['b', 'r']], ['The matcher wakes up too.', ['b', 'm']], ['Riders send location every few seconds, stored in fast memory by map square.', ['d', 'g']], ['The matcher checks nearby squares, scores riders and offers the job.', ['m', 'g', 'd']]],
+  fixes: [['Searching all riders is too slow', 'Divide the map into squares, then look at nearby squares only.', 'index'], ['Location updates flood the database', 'Keep them in fast memory, and save samples.', 'cache'], ['Dinner rush', 'Queues take the spike, and matching scales alone.', 'queue'], ['Restaurant tablet offline', 'Fall back to a phone call.', 'breaker']] },
+{ id: 'instagram', name: 'Instagram feed', tag: 'Advanced', hook: 'Open the app and see fresh posts from all the people you follow, instantly. A celebrity posts to crores at once.',
+  nums: [['200 crore+', 'monthly users'], ['Under 1 sec', 'to open the feed'], ['Crores', 'of followers for top accounts']],
+  nodes: { u: { kind: 'client', label: 'Creator', x: 0, y: .15 }, p: { label: 'Post service', x: .28, y: .15 }, m: { kind: 'db', label: 'Photo store', x: .28, y: .95 }, b: { kind: 'queue', label: 'Fan-out', x: .6, y: .15 }, f: { kind: 'cache', label: 'Ready feeds', x: .6, y: .95 }, v: { kind: 'client', label: 'Followers', x: 1, y: .5 } },
+  edges: [['u', 'p'], ['p', 'm'], ['p', 'b'], ['b', 'f'], ['f', 'v'], ['m', 'v']],
+  steps: [['A creator uploads a photo. It goes to storage, and a CDN serves it worldwide.', ['u', 'p', 'm']], ['A "new post" event goes in the queue.', ['p', 'b']], ['Workers add the post ID to a ready-made feed for each follower.', ['b', 'f']], ['When you open the app, your feed is already waiting.', ['f', 'v']], ['Photos load from the nearest CDN server.', ['m', 'v']]],
+  fixes: [['Celebrity has crores of followers', 'Do not fan out. Mix their posts in when followers open the app.', 'pubsub'], ['Building a feed live is slow', 'Prepare feeds ahead of time, in a cache.', 'cache'], ['Billions of photos', 'Use object storage and a CDN.', 'cdn'], ['Post table is too large', 'Shard by user ID.', 'sharding']] },
+];
+
+/* Build Lab */
+const LAB = { cost: { server: 8000, lb: 3000, db: 10000, cache: 5000, replica: 10000, queue: 4000, cdn: 6000 } };
+const MISSIONS = [
+ { id: 'm1', name: 'Morning rush', text: 'Office crowd, 10 customers a sec. One server cannot cope.', rate: 10, mix: [.4, .5, .1], budget: 30000, hint: 'One server handles about 6.6 a second. How many do you need?', pass: { servers: 2 } },
+ { id: 'm2', name: 'Diwali sale', text: '24 a sec, and 60% just want product photos.', rate: 24, mix: [.6, .3, .1], budget: 42000, hint: 'Do not pay servers to send photos. Popular product reads can be cached too.', pass: { servers: 2, cdn: true, cache: true } },
+ { id: 'm3', name: 'Server dies at sec 5', text: '8 a sec. One server crashes during the test.', rate: 8, mix: [.4, .5, .1], budget: 38000, kill: 5000, hint: 'Count what remains after the crash.', pass: { servers: 3 } },
+ { id: 'm4', name: 'Breaking news', text: '20 a sec, almost all reading the same story.', rate: 20, mix: [0, .95, .05], budget: 52000, hint: 'Same story for everyone. Why ask the database each time?', pass: { servers: 4, cache: true } },
+ { id: 'm5', name: 'Flash orders', text: '14 a sec, 90% placing orders. The database is slow to write.', rate: 14, mix: [0, .1, .9], budget: 42000, hint: 'Read copies do not help with writing. Give customers a token instead.', pass: { servers: 3, queue: true } },
+];
+function labCost(L) {
+  const c = LAB.cost; return L.servers * c.server + (L.servers > 1 ? c.lb : 0) + c.db + (L.cache ? c.cache : 0) + L.replicas * c.replica + (L.queue ? c.queue : 0) + (L.cdn ? c.cdn : 0);
+}
+function labCfg(L) {
+  const sids = ['s1', 's2', 's3', 's4', 's5'], nodes = {
+    c: { kind: 'client', label: 'Customers', x: 0, y: .5 }, e: { kind: 'cache', label: 'CDN', x: .2, y: .03, ms: 30, workers: 40, queue: 20, hop: 150 }, lb: { kind: 'lb', label: 'Balancer', x: .2, y: .5 },
+    k: { kind: 'cache', label: 'Cache', x: .72, y: .03, ms: 25, workers: 30, queue: 20 }, q: { kind: 'queue', label: 'Queue', x: .72, y: .97, ms: 300, workers: 2, queue: 200, ack: true },
+    d: { kind: 'db', label: 'Database', x: 1, y: .22, ms: 350, workers: 3, queue: 8 }, r1: { kind: 'db', label: 'Read copy', x: 1, y: .6, ms: 350, workers: 3, queue: 8 }, r2: { kind: 'db', label: 'Read copy', x: 1, y: .97, ms: 350, workers: 3, queue: 8 }
+  };
+  sids.forEach((id, i) => nodes[id] = { label: 'Server ' + (i + 1), x: .46, y: i / 4, ms: 300, workers: 2, queue: 6 });
+  const servers = s => sids.slice(0, L.servers), read = s => leastBusy(s, ['d', 'r1', 'r2'].slice(0, 1 + L.replicas));
+  const cfg = {
+    key: 'lab', h: 340, nw: 72, nh: 36, hop: 220, okMs: 2500, patience: 6000, nodes, edges: [], rate: 6, data: {},
+    tag: s => { const m = s.data.mix || [.4, .5, .1], r = Math.random(); return { t: r < m[0] ? 'img' : r < m[0] + m[1] ? 'read' : 'write' }; },
+    route: (p, at, s) => {
+      const t = p.tag.t;
+      if (at === 'c') { if (t === 'img' && L.cdn) return 'e'; return L.servers > 1 ? 'lb' : 's1'; }
+      if (at === 'lb') return leastBusy(s, servers(s));
+      if (at === 'e' || at === 'd' || at === 'r1' || at === 'r2') return null;
+      if (at === 'k') return p.tag.hit ? null : read(s);
+      if (at === 'q') return 'd';
+      if (t === 'img') return null;
+      if (t === 'read') { if (L.cache) { p.tag.hit = Math.random() < .8; return 'k'; } return read(s); }
+      return L.queue ? 'q' : 'd';
+    },
+    say: s => s.data.line || 'Add parts on the right and watch the system change.'
+  };
+  return cfg;
+}
+function labApply(s, L) {
+  const n = s.nodes; ['s1', 's2', 's3', 's4', 's5'].forEach((id, i) => { n[id].off = i >= L.servers; n[id].y = L.servers === 1 ? .5 : i / (L.servers - 1); });
+  n.lb.off = L.servers < 2; n.e.off = !L.cdn; n.k.off = !L.cache; n.q.off = !L.queue; n.r1.off = L.replicas < 1; n.r2.off = L.replicas < 2;
+  const e = [['c', L.servers > 1 ? 'lb' : 's1'], ['c', 'e'], ['q', 'd'], ['k', 'd']];
+  ['s1', 's2', 's3', 's4', 's5'].forEach(a => { if (L.servers > 1) e.push(['lb', a]); e.push([a, 'k'], [a, 'q'], [a, 'd'], [a, 'r1'], [a, 'r2']); });
+  s.edges = e;
+}
+function labVerdict(s, m, L) {
+  const t = s.total, n = t.ok + t.lost, lost = n ? t.lost / n : 1, wait = t.ok ? t.ms / t.ok / 1000 : 99, cost = labCost(L);
+  const why = []; if (lost > .03) why.push(`${Math.round(lost * 100)}% of customers were lost (limit 3%)`);
+  if (wait > 2.5) why.push(`average wait was ${wait.toFixed(1)} sec (limit 2.5)`); if (cost > m.budget) why.push(`cost ₹${cost.toLocaleString('en-IN')} is over the budget`);
+  return { pass: !why.length, why, lost, wait, cost };
+}
+function labHeadless(m, L) {
+  const s = new Sim(labCfg(L)); labApply(s, L); s.data.mix = m.mix; s.rate = m.rate;
+  for (let t = 0; t < 15000; t += 16) { if (m.kill && t >= m.kill && !s.n('s1').down) s.setDown('s1', true); s.step(16); }
+  return labVerdict(s, m, L);
+}
+/* App shell: views, progress, widgets. */
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const app = $('#app'); let sims = [], view = '', cloud = null;
+const KEY = 'chai-to-scale-v1';
+let S = { done: {}, quiz: {}, miss: {}, cups: 0, days: 0, last: '' };
+try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (cloud) cloud.set(S).catch(() => {}); score(); }
+const RANKS = [[0, 'Chai cart'], [6, 'Corner shop'], [14, 'City chain'], [24, 'State brand'], [32, 'National brand']];
+const rank = () => { const n = Object.keys(S.done).length; return RANKS.filter(r => n >= r[0]).pop()[1]; };
+function score() { $('#score').innerHTML = `<span>${esc(rank())}</span><span><b>${S.cups}</b> cups</span>${S.days > 1 ? `<span><b>${S.days}</b> day run</span>` : ''}`; }
+function today() {
+  const d = new Date().toISOString().slice(0, 10); if (S.last === d) return;
+  const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10); S.days = S.last === y ? S.days + 1 : 1; S.last = d;
+}
+let toastT; function toast(m) { const t = $('#toast'); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
+function clear() { sims.forEach(s => s.destroy()); sims = []; }
+function addSim(host, key) { const cfg = SIMS[key](); cfg.key = key; const s = new Sim(cfg, host); sims.push(s); return s; }
+function go(v, noHash) {
+  view = v; clear(); render(); scrollTo(0, 0);
+  if (!noHash) { try { if (location.hash.slice(1) !== v) location.hash = v; } catch (e) {} }
+}
+addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== view && valid(h)) go(h, true); });
+const valid = h => ['home', 'lab', 'cases', 'words'].includes(h) || LESSONS.some(l => 'l-' + l.id === h) || CASES.some(c => 'c-' + c.id === h);
+function render() {
+  const top = view.startsWith('l-') ? 'home' : view.startsWith('c-') ? 'cases' : view;
+  $$('#nav button').forEach(b => b.dataset.go === top ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
+  if (view === 'home') home(); else if (view === 'lab') lab(); else if (view === 'cases') cases(); else if (view === 'words') words();
+  else if (view.startsWith('l-')) lesson(LESSONS.find(l => 'l-' + l.id === view)); else caseView(CASES.find(c => 'c-' + c.id === view));
+}
+$('#brand').onclick = () => go('home'); $$('#nav button').forEach(b => b.onclick = () => go(b.dataset.go));
+const nextL = () => LESSONS.find(l => !S.done[l.id]);
+
+function home() {
+  const n = Object.keys(S.done).length, nx = nextL();
+  app.innerHTML = `<div class="wrap"><section class="hero">
+    <div class="stack"><div class="board"><p class="label">Platform 1 · System design</p><h1>From one chai stall to a crore customers</h1></div>
+      <p class="lead">Learn how apps like IRCTC, WhatsApp and UPI work, with no coding needed. You run a chai stall. Each problem it hits is a real problem big apps face, and you fix it with your own hands.</p>
+      <div class="row"><button class="btn" id="start">${n ? 'Continue: ' + esc(nx ? nx.t : 'Build Lab') : 'Start at station 1'}</button><button class="btn ghost" id="golab">Try the Build Lab</button></div>
+      <p class="label">${n} of ${LESSONS.length} lessons done · rank: ${esc(rank())}</p></div>
+    <div class="stack" style="gap:8px"><p class="simtry"><b>Try it now.</b> This is your stall. Each dot is a customer. Drag the crowd up.</p><div id="heroSim"></div></div>
+  </section>
+  <div class="row" style="gap:8px"><h2>The line, station by station</h2></div>
+  <p style="color:var(--mute);margin-top:6px">Each station is harder than the last. Every lesson takes about 5 minutes.</p>
+  <div class="line">${STATIONS.map((s, i) => {
+    const full = s.lessons.every(l => S.done[l.id]);
+    return `<section class="stn ${full ? 'full' : ''}"><div class="board"><p class="label">Station ${i + 1} · ${esc(s.size)}</p><h2>${esc(s.name)}</h2></div><p class="blurb">${esc(s.blurb)}</p>
+    <div class="lessons">${s.lessons.map(l => `<button class="${S.done[l.id] ? 'done' : ''}" data-l="${l.id}"><span class="tick">${S.done[l.id] ? 'DONE' : LESSONS.indexOf(l) + 1}</span><span class="name">${esc(l.t)}<span class="sub">${esc(l.sub)}</span></span></button>`).join('')}</div></section>`;
+  }).join('')}
+  <section class="stn"><div class="board"><p class="label">Final stop · Real life</p><h2>Real Apps Terminal</h2></div><p class="blurb">Take the tools apart inside IRCTC, WhatsApp, Hotstar, UPI and more.</p><div class="row"><button class="btn ghost" id="gocases">See how real apps work</button></div></section>
+  </div><footer>Your progress saves automatically. Case-study numbers are rounded public figures.</footer></div>`;
+  addSim($('#heroSim'), 'stall');
+  $('#start').onclick = () => go(nx ? 'l-' + nx.id : 'lab'); $('#golab').onclick = () => go('lab'); $('#gocases').onclick = () => go('cases');
+  $$('[data-l]').forEach(b => b.onclick = () => go('l-' + b.dataset.l));
+}
+
+function lesson(l) {
+  const i = LESSONS.indexOf(l), prev = LESSONS[i - 1], next = LESSONS[i + 1];
+  app.innerHTML = `<div class="wrap"><div class="read stack">
+    <div class="crumb"><button class="linkish" id="back">Back to the line</button><span class="label">${esc(l.st.name)} · Lesson ${i + 1} of ${LESSONS.length}</span></div>
+    <h1>${esc(l.t)}</h1>
+    <div class="block"><p class="label">The problem</p><p class="bigtext">${esc(l.p)}</p></div>
+    <div class="board"><p class="label">The simple idea</p><p class="idea">${esc(l.i)}</p></div>
+    <div class="block"><p class="label">${l.sim ? 'Try it yourself' : 'See it'}</p>${l.try ? `<p class="simtry">${l.try}</p>` : ''}<div id="lsim"></div></div>
+    <div class="block"><p class="label">Where you have already seen this</p><div class="realgrid">${l.real.map(([a, b]) => `<div class="real"><b>${esc(a)}</b>${esc(b)}</div>`).join('')}</div></div>
+    <div class="cost"><p class="label">What it costs</p><p>${esc(l.cost)}</p></div>
+    <div class="block"><p class="label">Words to know</p><dl class="words">${l.words.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl></div>
+    <details class="deep"><summary>Go deeper (for the curious)</summary><p>${esc(l.deep)}</p></details>
+    <div class="block"><p class="label">Quick check</p><div class="stack" style="gap:12px" id="quiz"></div></div>
+    <div class="ask" id="ask" hidden><p class="label">Still confused?</p><p>Ask anything about this topic. Claude answers in plain words.</p>
+      <label class="label" for="askq">Your question</label><input id="askq" placeholder="Example: Why can't we just buy one huge server?">
+      <div class="row"><button class="btn small" id="askgo">Ask</button><button class="btn ghost small" id="askeli">Explain it like I am 10</button></div><p class="ans" id="ans" aria-live="polite"></p></div>
+    <div class="next">${prev ? `<button class="btn ghost" id="prev">Back: ${esc(prev.t)}</button>` : '<span></span>'}${next ? `<button class="btn" id="next">Next: ${esc(next.t)}</button>` : '<button class="btn" id="tolab">Go to the Build Lab</button>'}</div>
+  </div></div>`;
+  const host = $('#lsim'); if (l.sim) addSim(host, l.sim); else VIS[l.vis](host);
+  quiz(l); tutor(l);
+  $('#back').onclick = () => go('home');
+  if (prev) $('#prev').onclick = () => go('l-' + prev.id);
+  if (next) $('#next').onclick = () => go('l-' + next.id); else $('#tolab').onclick = () => go('lab');
+}
+function quiz(l) {
+  const box = $('#quiz'), got = S.quiz[l.id] || [];
+  l.quiz.forEach(([q, opts, a, why], qi) => {
+    const d = document.createElement('div'); d.className = 'q'; d.innerHTML = `<p><b>${esc(q)}</b></p><div class="stack" style="gap:6px"></div><p class="why" hidden></p>`;
+    const list = d.children[1], whyEl = d.children[2];
+    const order = opts.map((o, i) => i).sort((x, y) => ((x * 7 + qi * 3 + l.id.length) % 4) - ((y * 7 + qi * 3 + l.id.length) % 4));
+    order.forEach(i => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.textContent = opts[i];
+      if (got[qi] && i === a) b.classList.add('right');
+      b.onclick = () => {
+        if (got[qi]) return;
+        if (i !== a) { b.classList.add('wrong'); whyEl.hidden = false; whyEl.textContent = 'Not quite. Try another one.'; return; }
+        b.classList.add('right'); whyEl.hidden = false; whyEl.textContent = 'Correct. ' + why; got[qi] = 1; S.quiz[l.id] = got;
+        if (l.quiz.every((_, k) => got[k]) && !S.done[l.id]) { S.done[l.id] = 1; S.cups += 10; today(); toast('Lesson done. +10 cups of chai'); }
+        save();
+      };
+      list.appendChild(b);
+    });
+    if (got[qi]) { whyEl.hidden = false; whyEl.textContent = why; }
+    box.appendChild(d);
+  });
+}
+async function tutor(l) {
+  if (!window.claude || !window.claude.use) return;
+  const sample = await window.claude.use('sample'); if (!sample || view !== 'l-' + l.id) return;
+  const box = $('#ask'); if (!box) return; box.hidden = false;
+  const ans = $('#ans'), ctx = `You are a friendly teacher of system design for a person with no technical background. Use the running example of a chai stall that grows into a national chain, plus everyday Indian examples. Use short sentences and no jargon unless you explain it. Answer in under 120 words, as plain text with no markdown.\nLesson: ${l.t}. Key idea: ${l.i} Problem story: ${l.p}\n`;
+  const ask = async q => {
+    ans.textContent = 'Thinking...';
+    try { const r = await sample(ctx + 'Learner asks: ' + q, { modelTier: 'quick', onText: ({ text }) => ans.textContent = text }); ans.textContent = r.text; }
+    catch (e) { if (e && e.code === 'not_granted') box.hidden = true; else ans.textContent = e && e.code === 'rate_limited' ? 'Too many questions right now. Try again in a minute.' : 'That did not work. Please try again.'; }
+  };
+  $('#askgo').onclick = () => { const q = $('#askq').value.trim(); if (q) ask(q); else $('#askq').focus(); };
+  $('#askq').onkeydown = e => { if (e.key === 'Enter') $('#askgo').click(); };
+  $('#askeli').onclick = () => ask('Explain this whole idea as if I am 10 years old.');
+}
+
+/* hand-built visuals for lessons without a flow sim */
+const VIS = {
+  sql(h) {
+    h.className = 'vis'; h.innerHTML = `<div class="two"><div class="stack" style="gap:8px"><h3>SQL: neat register</h3><div style="overflow-x:auto"><table class="tbl"><tr><th>id</th><th>name</th><th>amount</th></tr><tr><td>1</td><td>Raju</td><td>₹40</td></tr><tr><td>2</td><td>Meena</td><td>₹25</td></tr><tr><td>3</td><td>Salim</td><td>₹60</td></tr></table></div><p>Every row has the same columns. Think Excel with strict rules.</p></div>
+    <div class="stack" style="gap:8px"><h3>NoSQL: flexible folders</h3><pre class="code">{ "name": "Raju",
+  "photo": "raju.jpg" }
+
+{ "name": "Meena",
+  "voice_note": "m.mp3",
+  "stars": 5 }</pre><p>Each record can have different fields.</p></div></div>`;
+  },
+  txn(h) {
+    h.className = 'vis'; let on = false, a = 1000, b = 500, msg = 'Press Send and the power fails halfway.';
+    h.innerHTML = `<div class="row"><button class="tog" id="txon" type="button" aria-pressed="false">Use a transaction</button><button class="act" id="txgo" type="button">Send ₹500, power fails midway</button><button class="btn ghost small" id="txre" type="button">Reset</button></div><div class="txnrow"><div class="acct">You<b id="txa"></b></div><div class="acct">Friend<b id="txb"></b></div></div><p id="txm" style="font-weight:700"></p>`;
+    const up = () => { $('#txa').textContent = '₹' + a; $('#txb').textContent = '₹' + b; $('#txm').textContent = `Total in the system: ₹${a + b}. ${msg}`; };
+    $('#txon').onclick = e => { on = !on; e.target.setAttribute('aria-pressed', on); };
+    $('#txgo').onclick = () => { a = 1000; b = 500; if (on) msg = 'Power failed, so step 1 was rolled back. Your money is safe. Try again later.'; else { a = 500; msg = 'Your ₹500 left, and your friend never got it. Money has vanished!'; } up(); };
+    $('#txre').onclick = () => { a = 1000; b = 500; msg = 'Press Send and the power fails halfway.'; up(); }; up();
+  },
+  monitor(h) {
+    h.className = 'vis'; const v = [.2, .25, .2, .3, .22, .24, .3, .26, .2, .28, .25, .3, .22, .24, .27, .25, .3, .26, .9, 3.2].sort((a, b) => a - b), mx = 3.2, avg = v.reduce((a, b) => a + b) / v.length;
+    h.innerHTML = `<h3>Time taken by 20 requests</h3><div class="bars" style="margin-top:10px" role="img" aria-label="Bar chart: most requests take about 0.25 seconds; the slowest takes 3.2 seconds">${v.map(x => `<i class="${x > 1 ? 'slow' : ''}" style="height:${x / mx * 100}%"></i>`).join('')}</div>
+    <div class="nums" style="margin-top:12px"><div><b>${avg.toFixed(2)} s</b>Average</div><div><b>${v[10].toFixed(2)} s</b>Typical user (p50)</div><div><b>3.2 s</b>Unlucky user (p99)</div></div>
+    <div class="realgrid" style="margin-top:12px"><div class="real"><b>Metrics</b>The car speedometer. Numbers over time.</div><div class="real"><b>Logs</b>The shop diary. What happened, and when.</div><div class="real"><b>Traces</b>Parcel tracking. Each stop of one request.</div></div>`;
+  },
+  calc(h) {
+    h.className = 'vis'; const v = { dau: 1000000, act: 10, peak: 5, kb: 2 };
+    h.innerHTML = `<div class="stack" style="gap:8px">${[['dau', 'Daily users', 10000, 100000000, 10000], ['act', 'Actions per user per day', 1, 100, 1], ['peak', 'Peak is how many times normal', 2, 10, 1], ['kb', 'Data saved per action (KB)', 1, 1000, 1]].map(([k, l, a, b, st]) => `<div class="ctl" style="grid-template-columns:minmax(0,1fr) 150px"><label for="calc-${k}">${l}</label><input id="calc-${k}" type="number" min="${a}" max="${b}" step="${st}" value="${v[k]}" style="padding:6px;border:2px solid var(--ink);background:var(--card);width:100%"></div>`).join('')}</div><div class="nums" style="margin-top:14px"><div><b id="o1"></b>Requests per sec, normal</div><div><b id="o2"></b>Requests per sec, peak</div><div><b id="o3"></b>Servers (1,000 per sec each, plus a spare)</div></div><p style="margin-top:10px" id="o4"></p>`;
+    const n = x => Math.round(x).toLocaleString('en-IN');
+    const up = () => { const f = k => Math.max(0, +$('#calc-' + k).value || 0), rps = f('dau') * f('act') / 100000, pk = rps * f('peak'), gb = f('dau') * f('act') * f('kb') * 365 / 1e6;
+      $('#o1').textContent = n(rps); $('#o2').textContent = n(pk); $('#o3').textContent = n(Math.ceil(pk / 1000) + 1); $('#o4').textContent = `Storage needed in a year: about ${gb >= 1000 ? n(gb / 1000) + ' TB' : n(gb) + ' GB'}.`; };
+    $$('input', h).forEach(i => i.oninput = up); up();
+  },
+  method(h) {
+    h.className = 'vis'; h.innerHTML = `<div style="overflow-x:auto"><table class="tbl"><tr><th>Step</th><th>Ask yourself</th><th>Example: WhatsApp</th></tr>
+    ${[['1. Ask', 'What must it do? For whom?', 'One-to-one chat, groups, ticks. Photos later.'], ['2. Size', 'How many users? How much data?', '200 crore users, 1 lakh messages a second on average.'], ['3. Sketch', 'What are the main boxes?', 'Phones, chat servers, message store, push alerts.'], ['4. Zoom in', 'What is hardest here?', 'Delivering instantly when the friend is online or offline.'], ['5. Break it', 'What can fail? What then?', 'A chat server dies, so phones reconnect to another one.']].map(r => `<tr>${r.map((c, i) => i ? `<td>${c}</td>` : `<td><b>${c}</b></td>`).join('')}</tr>`).join('')}</table></div>`;
+  },
+  trade(h) {
+    h.className = 'vis'; h.innerHTML = `<div style="overflow-x:auto"><table class="tbl"><tr><th>You want</th><th>You pay with</th><th>Use it when</th></tr>
+    ${[['Cache: speed', 'Possibly old data', 'Read-heavy pages'], ['Copies: safety', 'Short delays, more cost', 'Data you cannot lose'], ['Shards: size', 'Harder queries', 'Data outgrows one machine'], ['Queues: smooth load', 'Results come later', 'The work can wait'], ['Microservices: team speed', 'Running many parts', 'Many teams, one product'], ['Strict correctness', 'Sometimes refusing users', 'Money, seats, stock']].map(r => `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</table></div>`;
+  },
+};
+
+function cases() {
+  app.innerHTML = `<div class="wrap stack" style="padding-block:24px 40px"><div class="board" style="align-self:flex-start"><p class="label">Real Apps Terminal</p><h1>How the apps you use really work</h1></div>
+  <p>Each one is a step-by-step ride through a system you already use. The designs show the common way to build such a system, simplified for learning. Each company's real setup differs in the details.</p>
+  <div class="casegrid">${CASES.map(c => `<button class="casecard" data-c="${c.id}"><span class="pill ${S.done['c-' + c.id] ? 'ok' : ''}">${S.done['c-' + c.id] ? 'DONE' : esc(c.tag)}</span><h2>${esc(c.name)}</h2><span class="sub">${esc(c.hook)}</span></button>`).join('')}</div></div>`;
+  $$('[data-c]').forEach(b => b.onclick = () => go('c-' + b.dataset.c));
+}
+function caseView(c) {
+  const i = CASES.indexOf(c), next = CASES[i + 1];
+  app.innerHTML = `<div class="wrap stack" style="padding-bottom:40px"><div class="crumb"><button class="linkish" id="back">All real apps</button><span class="label">${esc(c.tag)}</span></div>
+  <h1>${esc(c.name)}</h1><p class="bigtext" style="max-width:62ch">${esc(c.hook)}</p>
+  <div class="nums">${c.nums.map(([a, b]) => `<div><b>${esc(a)}</b>${esc(b)}</div>`).join('')}</div>
+  <div class="block"><p class="label">The ride, step by step</p><p>Click each step. The red dot follows the path.</p>
+  <div class="casewide"><div id="csim"></div><ol class="steps">${c.steps.map((s, k) => `<li><button class="stepbtn" data-s="${k}" aria-pressed="false"><span class="n">${k + 1}</span><span>${esc(s[0])}</span></button></li>`).join('')}</ol></div></div>
+  <div class="block"><p class="label">Problems and how they are solved</p><div class="fixes">${c.fixes.map(([a, b, l]) => `<div class="fix"><div><b>Problem</b><br>${esc(a)}</div><div><b>Solution</b><br>${esc(b)} <button class="linkish" data-l="${l}">Learn this</button></div></div>`).join('')}</div></div>
+  <div class="row"><button class="btn" id="cdone">${S.done['c-' + c.id] ? 'Completed' : 'Mark as understood (+15 cups)'}</button>${next ? `<button class="btn ghost" id="cnext">Next: ${esc(next.name)}</button>` : ''}</div></div>`;
+  const s = new Sim({ key: 'case-' + c.id, rate: 0, h: 300, nw: 92, nh: 44, nodes: c.nodes, edges: c.edges, route: () => null, tag: () => false, alt: 'Diagram of ' + c.name + ': ' + c.steps.map(x => x[0]).join(' ') }, $('#csim')); sims.push(s);
+  $$('.simhead,.legend,.simsay', $('#csim')).forEach(e => e.hidden = true);
+  const pick = k => { $$('.stepbtn').forEach((b, j) => b.setAttribute('aria-pressed', j === k)); s.highlight(c.steps[k][1]); s.trace(c.steps[k][1]); };
+  $$('.stepbtn').forEach((b, k) => b.onclick = () => pick(k)); pick(0);
+  $('#back').onclick = () => go('cases'); if (next) $('#cnext').onclick = () => go('c-' + next.id);
+  $$('[data-l]').forEach(b => b.onclick = () => go('l-' + b.dataset.l));
+  $('#cdone').onclick = e => { if (S.done['c-' + c.id]) return; S.done['c-' + c.id] = 1; S.cups += 15; today(); save(); e.target.textContent = 'Completed'; toast('+15 cups of chai'); };
+}
+
+function words() {
+  app.innerHTML = `<div class="wrap read stack" style="padding-block:24px 40px"><div class="board" style="align-self:flex-start"><p class="label">Help desk</p><h1>Fix-it Finder</h1></div>
+  <p>Pick what is going wrong. See what fixes it.</p><div class="chips" id="fx">${FIXES.map((f, i) => `<button class="chip" data-i="${i}" aria-pressed="${i === 0}">${esc(f[0])}</button>`).join('')}</div><div class="board" id="fxo"></div>
+  <h2>Plain-word dictionary</h2><label class="label" for="wq">Search ${WORDS.length} words</label><input class="search" id="wq" placeholder="Try: cache, shard, latency"><div id="wl"></div></div>`;
+  const fx = i => { const f = FIXES[i]; $('#fxo').innerHTML = `<p class="label">The fix</p><p class="idea">${esc(f[2])}</p><div class="row" style="margin-top:8px">${f[1].map(id => { const l = LESSONS.find(x => x.id === id); return `<button class="btn small" data-l="${id}">${esc(l.t)}</button>`; }).join('')}</div>`; $$('#fxo [data-l]').forEach(b => b.onclick = () => go('l-' + b.dataset.l)); };
+  $$('#fx .chip').forEach(b => b.onclick = () => { $$('#fx .chip').forEach(x => x.setAttribute('aria-pressed', x === b)); fx(+b.dataset.i); }); fx(0);
+  const list = q => { const r = WORDS.filter(w => (w.w + ' ' + w.d).toLowerCase().includes(q)).sort((a, b) => a.w.localeCompare(b.w)); $('#wl').innerHTML = r.length ? r.map(w => `<div class="term"><b>${esc(w.w)}</b><br>${esc(w.d)} <span class="also">From: <button class="linkish" data-l="${w.l}">${esc(w.t)}</button></span></div>`).join('') : '<p class="term">No match. Try a shorter word.</p>'; $$('#wl [data-l]').forEach(b => b.onclick = () => go('l-' + b.dataset.l)); };
+  $('#wq').oninput = e => list(e.target.value.trim().toLowerCase()); list('');
+}
+
+function lab() {
+  const L = { servers: 1, cache: false, replicas: 0, queue: false, cdn: false }; let M = MISSIONS.find(m => !S.miss[m.id]) || MISSIONS[0], run = null;
+  app.innerHTML = `<div class="wrap stack" style="padding-block:24px 40px"><div class="board" style="align-self:flex-start"><p class="label">Workshop</p><h1>Build Lab</h1></div>
+  <p>Pick a mission, add parts, then run a 15-second test. You pass if under 3% of customers leave, the average wait is under 2.5 sec, and you stay on budget.</p>
+  <div class="labgrid"><div class="stack" style="gap:10px"><div id="labsim"></div><div id="verdict" class="verdict" hidden aria-live="polite"></div></div>
+  <div class="stack" style="gap:12px"><div class="stack" style="gap:6px" id="missions"></div>
+   <div class="stack" style="gap:8px"><p class="label">Your parts</p>
+    <div class="ctl" style="grid-template-columns:minmax(0,1fr) auto"><label for="lserv">Servers (₹8,000 each)</label><output id="lservo">1</output><input id="lserv" style="grid-column:1/-1" type="range" min="1" max="5" value="1"></div>
+    <div class="ctl" style="grid-template-columns:minmax(0,1fr) auto"><label for="lrep">Read copies (₹10,000 each)</label><output id="lrepo">0</output><input id="lrep" style="grid-column:1/-1" type="range" min="0" max="2" value="0"></div>
+    <div class="ctlbtns"><button class="tog" data-p="cache" type="button" aria-pressed="false">Cache ₹5,000</button><button class="tog" data-p="queue" type="button" aria-pressed="false">Queue ₹4,000</button><button class="tog" data-p="cdn" type="button" aria-pressed="false">CDN ₹6,000</button></div>
+    <p><b id="lcost"></b></p><button class="btn" id="lrun">Run the 15-second test</button><button class="linkish" id="lhint">Need a hint?</button><p id="lhinttxt" hidden></p></div></div></div></div>`;
+  const s = new Sim(labCfg(L), $('#labsim')); sims.push(s); s.mount && 0;
+  const mis = () => { $('#missions').innerHTML = '<p class="label">Missions</p>' + MISSIONS.map(m => `<button class="casecard mission ${m === M ? 'on' : ''}" data-m="${m.id}"><span class="pill ${S.miss[m.id] ? 'ok' : ''}">${S.miss[m.id] ? 'PASSED' : '₹' + m.budget.toLocaleString('en-IN') + ' budget'}</span><b>${esc(m.name)}</b><span>${esc(m.text)}</span></button>`).join(''); $$('[data-m]').forEach(b => b.onclick = () => { if (run) return; M = MISSIONS.find(m => m.id === b.dataset.m); mis(); setM(); }); };
+  const setM = () => { s.data.mix = M.mix; s.rate = M.rate; $('#lhinttxt').hidden = true; $('#verdict').hidden = true; s.setDown('s1', false); s.data.line = M.text; };
+  const up = () => { labApply(s, L); const c = labCost(L); $('#lcost').textContent = `Monthly cost: ₹${c.toLocaleString('en-IN')} of ₹${M.budget.toLocaleString('en-IN')}`; $('#lcost').style.color = c > M.budget ? 'var(--stop)' : 'var(--go)'; };
+  $('#lserv').oninput = e => { L.servers = +e.target.value; $('#lservo').textContent = L.servers; up(); };
+  $('#lrep').oninput = e => { L.replicas = +e.target.value; $('#lrepo').textContent = L.replicas; up(); };
+  $$('[data-p]').forEach(b => b.onclick = () => { L[b.dataset.p] = !L[b.dataset.p]; b.setAttribute('aria-pressed', L[b.dataset.p]); up(); });
+  $('#lhint').onclick = () => { const h = $('#lhinttxt'); h.hidden = false; h.textContent = M.hint; };
+  $('#lrun').onclick = e => {
+    if (run) return; s.playing = true; const pb = $('[data-play]', $('#labsim')); if (pb) pb.textContent = 'Pause';
+    s.ps = []; for (const k in s.nodes) { s.nodes[k].q = []; s.nodes[k].busy = 0; s.nodes[k].down = false; } s.log = []; s.total = { ok: 0, lost: 0, ms: 0 }; s.rate = M.rate; s.data.mix = M.mix; $('#verdict').hidden = true;
+    const t0 = s.t; run = M; e.target.textContent = 'Testing...';
+    const tick = () => {
+      if (!sims.includes(s)) return; const el = s.t - t0; s.data.line = `Testing: ${Math.max(0, 15 - el / 1000).toFixed(0)} sec left`;
+      if (M.kill && el >= M.kill && !s.n('s1').down && !s.n('s1').off) { s.setDown('s1', true); }
+      if (el < 15000) { setTimeout(tick, 200); return; }
+      const v = labVerdict(s, M, L), o = $('#verdict'); o.hidden = false; o.className = 'verdict ' + (v.pass ? 'ok' : 'no'); run = null; e.target.textContent = 'Run the 15-second test';
+      o.textContent = v.pass ? `Mission passed. ${Math.round(v.lost * 100)}% lost, ${v.wait.toFixed(1)} sec wait, ₹${v.cost.toLocaleString('en-IN')} a month.` : 'Not yet: ' + v.why.join('; ') + '.';
+      s.data.line = v.pass ? 'That design holds up.' : 'Change your parts and run the test again.';
+      if (v.pass && !S.miss[M.id]) { S.miss[M.id] = 1; S.cups += 20; today(); save(); toast('Mission passed. +20 cups of chai'); } mis();
+    }; tick();
+  };
+  mis(); setM(); up();
+}
+
+/* checks every lesson, sim and mission; run from the console */
+window.__selftest = () => {
+  const bad = [];
+  LESSONS.forEach(l => {
+    if (!l.sim && !VIS[l.vis]) bad.push('no visual: ' + l.id); if (l.sim && !SIMS[l.sim]) bad.push('no sim: ' + l.id);
+    l.quiz.forEach(q => { if (q[2] >= q[1].length) bad.push('quiz: ' + l.id); });
+  });
+  CASES.forEach(c => { c.steps.forEach(s => s[1].forEach(n => { if (!c.nodes[n]) bad.push('case node ' + c.id + ':' + n); })); c.fixes.forEach(f => { if (!LESSONS.some(l => l.id === f[2])) bad.push('case link ' + f[2]); }); });
+  FIXES.forEach(f => f[1].forEach(id => { if (!LESSONS.some(l => l.id === id)) bad.push('fix link ' + id); }));
+  for (const k in SIMS) {
+    try {
+      const c = SIMS[k](), s = new Sim(c); for (let t = 0; t < 12000; t += 16) s.step(16);
+      (c.controls || []).forEach(x => { if (x.k === 'toggle') x.set(s, true); if (x.k === 'btn') x.do(s); });
+      for (let t = 0; t < 12000; t += 16) s.step(16);
+      if (!s.total.ok && k !== 'x') bad.push('sim served nothing: ' + k);
+    } catch (e) { bad.push('sim ' + k + ': ' + e.message); }
+  }
+  const missions = MISSIONS.map(m => { const base = { servers: 1, cache: false, replicas: 0, queue: false, cdn: false }, a = labHeadless(m, { ...base, ...m.pass }), b = labHeadless(m, base); return { id: m.id, pass: a.pass, why: a.why, lost: +a.lost.toFixed(3), wait: +a.wait.toFixed(2), baseFails: !b.pass }; });
+  return { lessons: LESSONS.length, cases: CASES.length, words: WORDS.length, bad, missions };
+};
+
+/* boot */
+today(); score();
+const first = location.hash.slice(1); go(valid(first) ? first : 'home', true);
+(async () => {
+  if (!window.claude || !window.claude.use) return;
+  const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]); if (!db || !user) return;
+  try {
+    const id = await user.id(), ref = db.collection('data/users/' + id).doc('progress'), snap = await ref.get(), remote = snap && (snap.data ? snap.data() : snap);
+    cloud = ref;
+    if (remote && remote.cups >= S.cups) { S = Object.assign(S, remote); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} score(); if (view === 'home') { clear(); render(); } }
+    else if (S.cups) save();
+  } catch (e) {}
+})();
+</script>
